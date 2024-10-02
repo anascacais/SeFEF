@@ -24,28 +24,28 @@ class TimeSeriesCV:
     test_duration: int, optional
         Set duration of test. Defaults to 1/2 of 'initial_train_duration'.
     method: str
-        description
+        Description
+    n_folds: int
+        Description.
     
     Methods
     -------
     split: 
-        description
+        Description
     
     Raises
     -------
     ValueError:
-        description
+        Description
     ''' 
 
     def __init__(self, n_min_events=3, initial_train_duration=None, test_duration=None):
         self.n_min_events = n_min_events
-        if initial_train_duration is not None:
-            self.initial_train_duration = initial_train_duration
-        else: 
-            self.initial_train_duration = None
+        self.initial_train_duration = initial_train_duration
         self.test_duration = test_duration
-
         self.method = 'expanding'
+
+        self.n_folds = None
 
     def split(self, dataset):
         """
@@ -54,7 +54,7 @@ class TimeSeriesCV:
         Parameters:
         -----------
         dataset : Dataset
-            
+            Instance of Dataset.
         Returns:
         -------
         train_idx : array-like, shape (n_train,)
@@ -62,32 +62,78 @@ class TimeSeriesCV:
         test_idx : array-like, shape (n_test,)
             The indices for the test set.
         """
-        #if self.initial_train_duration is None: 
-        init_cutoff_ind = self._get_cutoff_ind(dataset)
+        if self.initial_train_duration is None:
+            total_recorded_duration = dataset.files_metadata['total_duration'].sum()
+            self.initial_train_duration = (1/3) * total_recorded_duration
 
-        return None
+        if self.test_duration is None:
+            self.test_duration = (1/2) * self.initial_train_duration
 
-    def _expanding_window_split(self, n_samples):
+        # Check basic conditions
+        if dataset.metadata['sz_onset'].sum() < self.n_min_events:
+            raise ValueError("Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events').")
+
+        if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
+            raise ValueError("Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' and/or 'test_duration').")
+
+        # Get index for initial split
+        initial_cutoff_ts = self._get_cutoff_ts(dataset)
+        initial_cutoff_ts = self._check_criteria(dataset, initial_cutoff_ts)
+
+        return self._expanding_window_split(dataset, initial_cutoff_ts)
+
+
+
+    def _expanding_window_split(self, dataset, initial_cutoff_ts):
         """Internal method for expanding window cross-validation."""
-        fold_size = (n_samples - self.test_size) // self.n_splits
-        for i in range(self.n_splits):
-            train_idx = np.arange(0, fold_size * (i + 1))
-            test_idx = np.arange(fold_size * (i + 1), fold_size * (i + 1) + self.test_size)
-            yield train_idx, test_idx
+
+        after_train_set = dataset.metadata.loc[initial_cutoff_ts:]
+        self.n_folds = int(after_train_set['total_duration'].sum() // self.test_duration)
+        
+        cutoff_ts = initial_cutoff_ts.copy()
+        
+        for i in range(self.n_folds):
+            if i != 0:
+                after_train_set = dataset.metadata.loc[cutoff_ts:]
+                cutoff_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[0]
+            yield cutoff_ts
+                
 
     def _sliding_window_split(self):
         """Internal method for sliding window cross-validation."""
         pass
 
-    def _get_cutoff_ind(self, dataset):
-        """Internal method for ????"""
-        if self.initial_train_duration is None:
-            total_recorded_duration = dataset.files_metadata['total_duration'].sum()
-            self.initial_train_duration = (1/3) * total_recorded_duration
+    def _get_cutoff_ts(self, dataset):
+        """Internal method for getting the first iteration of the cutoff timestamp based on 'self.initial_train_duration'."""
+        cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[0]
+        return cutoff_ts
 
-        # cutoff_ind = df_epochs.index[df_epochs["recorded time (min)"].cumsum() > (
-        # total_recorded_time * (1/3))].tolist()[0]
-        pass
+
+    def _check_criteria(self, dataset, initial_cutoff_ts):
+        """Internal method for iterating the initial cutoff timestamp in order to respect the condition on the minimum number of seizures."""
+
+        criteria_check = [False] * 1
+
+        initial_cutoff_ind = dataset.metadata.index.get_loc(initial_cutoff_ts)
+
+        while not all(criteria_check):
+            initial_train_set = dataset.metadata.iloc[:initial_cutoff_ind]
+            
+            # Criteria 1: min number 
+            criteria_check[0] = initial_train_set['sz_onset'].sum() >= self.n_min_events
+            
+            if not all(criteria_check):
+                print(f"Failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]}")
+                
+                if not criteria_check[0]:
+                    initial_cutoff_ind += 1
+        
+        # Check if there's enough data left for at least one test set
+        after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
+        if after_train_set['total_duration'].sum() < self.test_duration:
+            raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events', 'initial_train_duration', and/or 'test_duration').")
+
+        return dataset.metadata.iloc[initial_cutoff_ind].name
 
 
 
@@ -120,9 +166,10 @@ class Dataset:
         """Internal method that updates 'self.metadata' by placing each seizure onset within an acquisition file."""
         files_metadata = self.files_metadata.copy()
         files_metadata.set_index(pd.Index(files_metadata['first_timestamp'], dtype='int64'), inplace=True)
+        files_metadata.drop(['first_timestamp'], axis=1, inplace=True) 
 
         sz_onsets = pd.DataFrame([1]*len(self.sz_onsets), index=pd.Index(self.sz_onsets, dtype='int64'), columns=['sz_onset'])
-        self.metadata = files_metadata.join(sz_onsets, how='outer')
+        return files_metadata.join(sz_onsets, how='outer')
         
         
 
