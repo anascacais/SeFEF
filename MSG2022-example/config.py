@@ -22,6 +22,7 @@ train_configurations = {
 
 features_list = ['ToD', 'SQI EDA', 'SQI BVP'] # features to extract
 sqi_channels = ['SQI EDA', 'SQI BVP'] # sqi channels to use
+sampling_frequency = 128 # in Hz
 
 # Constants
 CATEGORICAL_PALETTE = ['#4179A0', '#A0415D',
