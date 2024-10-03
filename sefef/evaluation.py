@@ -193,33 +193,18 @@ class TimeSeriesCV:
             test_set = self._handle_missing_data(test_set, ifold+1)
 
             # add existant data 
-            fig.add_trace(go.Scatter(
-                x = train_set.index, 
-                y = train_set.data, 
-                mode = 'lines',
-                line = {
-                    'color': 'rgba' + str(hex_to_rgba(
-                        h = COLOR_PALETTE[0],
-                        alpha=1
-                    )),
-                    'width': 7
-                }
-                )
-            )
+            fig.add_trace(self._get_scatter_plot(train_set, color=COLOR_PALETTE[0]))
+            fig.add_trace(self._get_scatter_plot(test_set, color=COLOR_PALETTE[1]))
             
-            fig.add_trace(go.Scatter(
-                x = test_set.index, 
-                y = test_set.data, 
-                mode = 'lines',
-                line = {
-                    'color': 'rgba' + str(hex_to_rgba(
-                        h = COLOR_PALETTE[1],
-                        alpha=1
-                    )),
-                    'width': 7
-                }
-                )
-            )
+            # add seizures
+            fig.add_trace(self._get_scatter_plot_sz(
+                train_set[train_set['sz_onset'] == 1], 
+                color=COLOR_PALETTE[0]
+            ))
+            fig.add_trace(self._get_scatter_plot_sz(
+                test_set[test_set['sz_onset'] == 1], 
+                color=COLOR_PALETTE[1]
+            ))
 
         # Config plot layout
         fig.update_yaxes(
@@ -253,6 +238,39 @@ class TimeSeriesCV:
         dataset.sort_index(inplace=True)
 
         return dataset
+
+    def _get_scatter_plot(self, dataset, color):
+        return go.Scatter(
+            x = dataset.index, 
+            y = dataset.data, 
+            mode = 'lines',
+            line = {
+                'color': 'rgba' + str(hex_to_rgba(
+                    h = color,
+                    alpha=1
+                )),
+                'width': 7
+            }
+            )
+
+    def _get_scatter_plot_sz(self, dataset, color):
+        return go.Scatter(
+            x = dataset.index, 
+            y = dataset.data-0.1, 
+            mode = 'text',
+            # marker = {
+            #     #'symbol': '⚡',
+            #     'color': 'rgba' + str(hex_to_rgba(
+            #         h = color,
+            #         alpha=0
+            #     )),
+            # },
+            text = ['ϟ'] * len(dataset),
+            textfont = dict(
+                size=16,
+                color=color  # Set the color of the Unicode text here
+            )
+        )
 
 
         

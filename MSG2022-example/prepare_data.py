@@ -33,7 +33,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     sz_onset_df = get_sz_onset_df(train_labels.reset_index()[['utc-datetime', 'label']].to_numpy(), mpl=10) # mpl set to 10min to account for the pre-ictal labeling done in MSG2022
     sz_onsets = (sz_onset_df.index.astype('int') // 10**9).tolist()
 
-    dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=128)
+    dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=sampling_frequency)
     
     tscv = evaluation.TimeSeriesCV()
     tscv.split(dataset, iteratively=False)
