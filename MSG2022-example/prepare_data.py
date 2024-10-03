@@ -40,7 +40,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     # for train_start_ts, test_start_ts, test_end_ts in tscv.split(dataset):
     #     pass
 
-    tscv.plot()
+    tscv.plot(dataset)
 
 
 

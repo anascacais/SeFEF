@@ -10,6 +10,10 @@ License: MIT License
 # third-party
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+
+# local 
+from .visualization import COLOR_PALETTE, hex_to_rgba
 
 
 class TimeSeriesCV:
@@ -31,17 +35,19 @@ class TimeSeriesCV:
         Contains split timestamp indices (train_start_ts, test_start_ts, test_end_ts) for each fold. Is initiated as None and populated during 'split' method.
     Methods
     -------
-    split : 
+    split(dataset, iteratively) : 
         Get timestamp indices to split data for time series cross-validation. 
         - The train set can be obtained by metadata.loc[train_start_ts : test_start_ts].
         - The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].
-    plot :
-        Description
+    plot(dataset) :
+        Plots the TSCV folds with the available data.
     
     Raises
     -------
-    ValueError:
+    ValueError :
         Raised whenever TSCV is not passible to be performed under the attributes set by the user and available data. 
+    AttributeError :
+        Raised when 'plot' is called before 'split'.
     ''' 
 
     def __init__(self, n_min_events=3, initial_train_duration=None, test_duration=None):
@@ -164,22 +170,77 @@ class TimeSeriesCV:
 
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
-    def plot(self):
-        ''' Plots 
+    def plot(self, dataset):
+        ''' Plots the TSCV folds with the available data.
         
         Parameters
         ---------- 
-        param1: int
-            Description
-        
-        Returns
-        -------
-        result: bool
-            Description
+        dataset : Dataset
+            Instance of Dataset.
         ''' 
         if self.split_ind_ts is None:
             raise AttributeError("Object has no attribute 'split_ind_ts'. Make sure the 'split' method has been run beforehand.")
-        pass
+        
+        fig = go.Figure()
+
+        for ifold in range(self.n_folds):
+
+            train_set = dataset.metadata.loc[self.split_ind_ts[ifold, 0] : self.split_ind_ts[ifold, 1]]
+            test_set = dataset.metadata.loc[self.split_ind_ts[ifold, 1] : self.split_ind_ts[ifold, 2]]
+
+            train_set.index = pd.to_datetime(train_set.index, unit='s', utc=True)
+            test_set.index = pd.to_datetime(test_set.index, unit='s', utc=True)
+
+            train_set.insert(0, 'data', ifold+1)
+            test_set.insert(0, 'data', ifold+1)
+
+            # Don't think it will work if duration of files is not the same (or does not align)
+            train_set = train_set.asfreq(f"{train_set['total_duration'].min()}s")
+            test_set = test_set.asfreq(f"{test_set['total_duration'].min()}s")
+
+            # add existant data 
+            fig.add_trace(go.Scatter(
+                x = train_set.index, 
+                y = train_set.data, 
+                mode = 'lines',
+                line = {
+                    'color': 'rgba' + str(hex_to_rgba(
+                        h = COLOR_PALETTE[0],
+                        alpha=1
+                    )),
+                    'width': 7
+                }
+                )
+            )
+            
+            fig.add_trace(go.Scatter(
+                x = test_set.index, 
+                y = test_set.data, 
+                mode = 'lines',
+                line = {
+                    'color': 'rgba' + str(hex_to_rgba(
+                        h = COLOR_PALETTE[1],
+                        alpha=1
+                    )),
+                    'width': 7
+                }
+                )
+            )
+
+        # Config plot layout
+        fig.update_yaxes(
+            gridcolor = 'lightgrey',
+            autorange = 'reversed',
+            tickvals = list(range(1, self.n_folds+1)),
+            ticktext = [f'Fold {i}  ' for i in range(1, self.n_folds+1)],
+            tickfont = dict(size=12),
+        )
+        fig.update_layout(
+            title = 'Time Series Cross Validation',
+            showlegend = False,
+            plot_bgcolor = 'white')
+        fig.show()
+
 
 
 class Dataset:
