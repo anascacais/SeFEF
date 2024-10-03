@@ -182,21 +182,15 @@ class TimeSeriesCV:
             raise AttributeError("Object has no attribute 'split_ind_ts'. Make sure the 'split' method has been run beforehand.")
         
         fig = go.Figure()
-
+        
         for ifold in range(self.n_folds):
 
             train_set = dataset.metadata.loc[self.split_ind_ts[ifold, 0] : self.split_ind_ts[ifold, 1]]
             test_set = dataset.metadata.loc[self.split_ind_ts[ifold, 1] : self.split_ind_ts[ifold, 2]]
 
-            train_set.index = pd.to_datetime(train_set.index, unit='s', utc=True)
-            test_set.index = pd.to_datetime(test_set.index, unit='s', utc=True)
-
-            train_set.insert(0, 'data', ifold+1)
-            test_set.insert(0, 'data', ifold+1)
-
-            # Don't think it will work if duration of files is not the same (or does not align)
-            train_set = train_set.asfreq(f"{train_set['total_duration'].min()}s")
-            test_set = test_set.asfreq(f"{test_set['total_duration'].min()}s")
+            # handle missing data between files
+            train_set = self._handle_missing_data(train_set, ifold+1)
+            test_set = self._handle_missing_data(test_set, ifold+1)
 
             # add existant data 
             fig.add_trace(go.Scatter(
@@ -240,6 +234,28 @@ class TimeSeriesCV:
             showlegend = False,
             plot_bgcolor = 'white')
         fig.show()
+
+    def _handle_missing_data(self, dataset, ind):
+
+        # Create row for nan after files that are not contiguous (after file duration)
+        missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration'][:-1]).tolist() + [False]]
+        missing_data.set_index(missing_data.index + missing_data['total_duration'], inplace=True)
+        missing_data.iloc[:, :] = ['', 0, np.nan]
+
+        dataset.insert(0, 'data', ind)
+        missing_data.insert(0, 'data', np.nan)
+
+        # Convert timestamp to datetime
+        dataset.index = pd.to_datetime(dataset.index, unit='s', utc=True)
+        missing_data.index = pd.to_datetime(missing_data.index, unit='s', utc=True)
+
+        dataset = pd.concat([dataset, missing_data], ignore_index=False)
+        dataset.sort_index(inplace=True)
+
+        return dataset
+
+
+        
 
 
 
