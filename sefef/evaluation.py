@@ -220,7 +220,9 @@ class TimeSeriesCV:
             plot_bgcolor = 'white')
         fig.show()
 
+
     def _handle_missing_data(self, dataset, ind):
+        """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
 
         # Create row for nan after files that are not contiguous (after file duration)
         missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration'][:-1]).tolist() + [False]]
@@ -240,6 +242,7 @@ class TimeSeriesCV:
         return dataset
 
     def _get_scatter_plot(self, dataset, color):
+        """Internal method that returns a line-scatter-plot where data exists."""
         return go.Scatter(
             x = dataset.index, 
             y = dataset.data, 
@@ -254,17 +257,11 @@ class TimeSeriesCV:
             )
 
     def _get_scatter_plot_sz(self, dataset, color):
+        """Internal method that returns a marker-scatter-plot where sz onsets exist."""
         return go.Scatter(
             x = dataset.index, 
             y = dataset.data-0.1, 
             mode = 'text',
-            # marker = {
-            #     #'symbol': '⚡',
-            #     'color': 'rgba' + str(hex_to_rgba(
-            #         h = color,
-            #         alpha=0
-            #     )),
-            # },
             text = ['ϟ'] * len(dataset),
             textfont = dict(
                 size=16,
