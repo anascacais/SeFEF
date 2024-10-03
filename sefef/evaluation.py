@@ -8,35 +8,38 @@ License: MIT License
 """
 
 # third-party
-import numpy as np
 import pandas as pd
 
 
 class TimeSeriesCV:
-    ''' Class description 
+    ''' Implements time series cross validation (TSCV).
     
     Attributes
     ---------- 
     n_min_events: int, optional
-        Minimum number of lead seizures to include in the train set. Defaults to 3.
+        Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing. Defaults to 3.
     initial_train_duration: int, optional
-        Set duration of train for initial split. Defaults to 1/3 of total recorded duration.
+        Set duration of train for initial split (in seconds). Defaults to 1/3 of total recorded duration.
     test_duration: int, optional
-        Set duration of test. Defaults to 1/2 of 'initial_train_duration'.
+        Set duration of test (in seconds). Defaults to 1/2 of 'initial_train_duration'.
     method: str
-        Description
+        Method for TSCV - can be either 'expanding' or 'sliding'. Only 'expanding' is implemented atm.
     n_folds: int
-        Description.
+        Number of folds for the TSCV, determined according to the attributes set by the user and available data.
     
     Methods
     -------
     split: 
+        Get timestamp indices to split data for time series cross-validation. 
+        - The train set can be obtained by metadata.loc[train_start_ts : test_start_ts].
+        - The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].
+    plot:
         Description
     
     Raises
     -------
     ValueError:
-        Description
+        Raised whenever TSCV is not passible to be performed under the attributes set by the user and available data. 
     ''' 
 
     def __init__(self, n_min_events=3, initial_train_duration=None, test_duration=None):
@@ -48,19 +51,23 @@ class TimeSeriesCV:
         self.n_folds = None
 
     def split(self, dataset):
-        """
-        Get index to split data for time series cross-validation.
+        """ Get timestamp indices to split data for time series cross-validation. 
+        - The train set would be given by metadata.loc[train_start_ts : test_start_ts].
+        - The test set would be given by metadata.loc[test_start_ts : test_end_ts].
         
         Parameters:
         -----------
         dataset : Dataset
             Instance of Dataset.
+
         Returns:
         -------
-        train_idx : array-like, shape (n_train,)
-            The indices for the training set.
-        test_idx : array-like, shape (n_test,)
-            The indices for the test set.
+        train_start_ts : int
+            Timestamp index for the start of the train set.
+        test_start_ts : int
+            Timestamp index for the start of the test set (and end of train set).
+        test_end_ts : int
+            Timestamp index for the end of the test set.
         """
         if self.initial_train_duration is None:
             total_recorded_duration = dataset.files_metadata['total_duration'].sum()
@@ -70,7 +77,7 @@ class TimeSeriesCV:
             self.test_duration = (1/2) * self.initial_train_duration
 
         # Check basic conditions
-        if dataset.metadata['sz_onset'].sum() < self.n_min_events:
+        if dataset.metadata['sz_onset'].sum() < self.n_min_events + 1:
             raise ValueError("Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events').")
 
         if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
@@ -90,13 +97,17 @@ class TimeSeriesCV:
         after_train_set = dataset.metadata.loc[initial_cutoff_ts:]
         self.n_folds = int(after_train_set['total_duration'].sum() // self.test_duration)
         
-        cutoff_ts = initial_cutoff_ts.copy()
+        train_start_ts = dataset.metadata.index[0]
+        test_start_ts = initial_cutoff_ts.copy()
         
         for i in range(self.n_folds):
             if i != 0:
-                after_train_set = dataset.metadata.loc[cutoff_ts:]
-                cutoff_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[0]
-            yield cutoff_ts
+                after_train_set = dataset.metadata.loc[test_end_ts:]
+                test_start_ts = test_end_ts
+
+            test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[0]
+            
+            yield train_start_ts, test_start_ts, test_end_ts
                 
 
     def _sliding_window_split(self):
@@ -112,30 +123,49 @@ class TimeSeriesCV:
     def _check_criteria(self, dataset, initial_cutoff_ts):
         """Internal method for iterating the initial cutoff timestamp in order to respect the condition on the minimum number of seizures."""
 
-        criteria_check = [False] * 1
+        criteria_check = [False] * 2
 
         initial_cutoff_ind = dataset.metadata.index.get_loc(initial_cutoff_ts)
 
         while not all(criteria_check):
             initial_train_set = dataset.metadata.iloc[:initial_cutoff_ind]
+            after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
             
-            # Criteria 1: min number 
+            # Criteria 1: min number of events in train
             criteria_check[0] = initial_train_set['sz_onset'].sum() >= self.n_min_events
+            # Criteria 2: min number of events in test
+            criteria_check[1] = after_train_set['sz_onset'].sum() >= 1
             
             if not all(criteria_check):
                 print(f"Failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]}")
                 
-                if not criteria_check[0]:
+                if (not criteria_check[0]) and (not criteria_check[1]):
+                    raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events', 'initial_train_duration', and/or 'test_duration').")
+                elif not criteria_check[0]:
                     initial_cutoff_ind += 1
+                elif not criteria_check[1]:
+                    initial_cutoff_ind -= 1
         
         # Check if there's enough data left for at least one test set
-        after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
         if after_train_set['total_duration'].sum() < self.test_duration:
             raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events', 'initial_train_duration', and/or 'test_duration').")
 
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
-
+    def plot(self):
+        ''' Function description 
+        
+        Parameters
+        ---------- 
+        param1: int
+            Description
+        
+        Returns
+        -------
+        result: bool
+            Description
+        ''' 
+        pass
 
 
 class Dataset:
@@ -169,6 +199,7 @@ class Dataset:
         files_metadata.drop(['first_timestamp'], axis=1, inplace=True) 
 
         sz_onsets = pd.DataFrame([1]*len(self.sz_onsets), index=pd.Index(self.sz_onsets, dtype='int64'), columns=['sz_onset'])
+        
         return files_metadata.join(sz_onsets, how='outer')
         
         

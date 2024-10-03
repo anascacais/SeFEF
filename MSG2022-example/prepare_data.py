@@ -36,7 +36,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=128)
     
     tscv = evaluation.TimeSeriesCV()
-    for ts in tscv.split(dataset):
+    for train_start_ts, test_start_ts, test_end_ts in tscv.split(dataset):
         pass
 
 
