@@ -9,6 +9,7 @@ License: MIT License
 
 # third-party
 import pandas as pd
+import numpy as np
 
 
 class TimeSeriesCV:
@@ -16,24 +17,25 @@ class TimeSeriesCV:
     
     Attributes
     ---------- 
-    n_min_events: int, optional
+    n_min_events : int, optional
         Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing. Defaults to 3.
-    initial_train_duration: int, optional
+    initial_train_duration : int, optional
         Set duration of train for initial split (in seconds). Defaults to 1/3 of total recorded duration.
-    test_duration: int, optional
+    test_duration : int, optional
         Set duration of test (in seconds). Defaults to 1/2 of 'initial_train_duration'.
-    method: str
+    method : str
         Method for TSCV - can be either 'expanding' or 'sliding'. Only 'expanding' is implemented atm.
-    n_folds: int
+    n_folds : int
         Number of folds for the TSCV, determined according to the attributes set by the user and available data.
-    
+    split_ind_ts : array-like, shape (n_folds, 3)
+        Contains split timestamp indices (train_start_ts, test_start_ts, test_end_ts) for each fold. Is initiated as None and populated during 'split' method.
     Methods
     -------
-    split: 
+    split : 
         Get timestamp indices to split data for time series cross-validation. 
         - The train set can be obtained by metadata.loc[train_start_ts : test_start_ts].
         - The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].
-    plot:
+    plot :
         Description
     
     Raises
@@ -49,8 +51,9 @@ class TimeSeriesCV:
         self.method = 'expanding'
 
         self.n_folds = None
+        self.split_ind_ts = None
 
-    def split(self, dataset):
+    def split(self, dataset, iteratively=True):
         """ Get timestamp indices to split data for time series cross-validation. 
         - The train set would be given by metadata.loc[train_start_ts : test_start_ts].
         - The test set would be given by metadata.loc[test_start_ts : test_end_ts].
@@ -59,6 +62,8 @@ class TimeSeriesCV:
         -----------
         dataset : Dataset
             Instance of Dataset.
+        iteratively : bool, ooptional
+            If the split is meant to return the timestamp indices for each fold iteratively (True) or to simply update 'split_ind_ts' (False). Defaults to True.
 
         Returns:
         -------
@@ -87,7 +92,12 @@ class TimeSeriesCV:
         initial_cutoff_ts = self._get_cutoff_ts(dataset)
         initial_cutoff_ts = self._check_criteria(dataset, initial_cutoff_ts)
 
-        return self._expanding_window_split(dataset, initial_cutoff_ts)
+        if iteratively:
+            return self._expanding_window_split(dataset, initial_cutoff_ts)
+        else: 
+            for _ in self._expanding_window_split(dataset, initial_cutoff_ts):
+                pass
+            return None
 
 
 
@@ -96,6 +106,7 @@ class TimeSeriesCV:
 
         after_train_set = dataset.metadata.loc[initial_cutoff_ts:]
         self.n_folds = int(after_train_set['total_duration'].sum() // self.test_duration)
+        self.split_ind_ts = np.zeros((self.n_folds, 3), dtype='int64')
         
         train_start_ts = dataset.metadata.index[0]
         test_start_ts = initial_cutoff_ts.copy()
@@ -106,6 +117,7 @@ class TimeSeriesCV:
                 test_start_ts = test_end_ts
 
             test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[0]
+            self.split_ind_ts[i, :] = [train_start_ts, test_start_ts, test_end_ts]
             
             yield train_start_ts, test_start_ts, test_end_ts
                 
@@ -153,7 +165,7 @@ class TimeSeriesCV:
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
     def plot(self):
-        ''' Function description 
+        ''' Plots 
         
         Parameters
         ---------- 
@@ -165,6 +177,8 @@ class TimeSeriesCV:
         result: bool
             Description
         ''' 
+        if self.split_ind_ts is None:
+            raise AttributeError("Object has no attribute 'split_ind_ts'. Make sure the 'split' method has been run beforehand.")
         pass
 
 
