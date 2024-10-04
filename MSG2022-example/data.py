@@ -10,7 +10,7 @@ import scipy
 from sefef import evaluation 
 
 # local 
-from features import extract_features
+from features import extract_ts_features
 from config import features_list
 
 
@@ -140,7 +140,7 @@ def create_dataset(train_files, test_files, dataset_filepath, sampling_frequency
             for i, filename in enumerate(train_files):
 
                 timestamps_data, data, channels_names = read_and_segment(filename, fs=sampling_frequency, decimate_factor=8)
-                data = extract_features(timestamps_data, data, channels_names, features_list)
+                data = extract_ts_features(timestamps_data, data, channels_names, features_list)
 
                 # try:
                 #     dataset = (timestamps_data, data, np.array(
@@ -172,7 +172,7 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
         Frequency at which the data is stored. 
     sample_duration : int, defaults to 60s
         Desired duration for the samples (in seconds). 
-        
+
     Returns
     -------
     raw_np_timestamps: array-like, shape (# samples, )
