@@ -4,6 +4,7 @@ import datetime
 # third-party
 import numpy as np
 import pandas as pd
+import scipy
 
 
 def get_sz_onset_df(labels_array, mpl=10):
@@ -62,3 +63,53 @@ def get_indx_first_last_preictal_samples(labels_array):
     assert len(first_preictal_np_indx) == len(last_preictal_np_indx)
 
     return first_preictal_np_indx, last_preictal_np_indx
+
+
+
+def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  # 60s * 128Hz
+    ''' Reads a file with 10min duration, splits into 60s samples, drops the samples with NaNs and returns a list with length correspoding to the number of samples and each element an array with
+    dimension (sample length, # channels)
+
+    Parameters
+    ---------- 
+    filepath: str
+        Filepath for parquet file, with dataframe-like object, with 76800 rows (data points) and 9 columns (channels)
+    decimate_factor: int
+        Decimates each sample by this factor (e.g. decimate_factor=8 -> new_fs=16Hz)
+
+    Returns
+    -------
+    raw_list_timestamps: list<float>
+        List (with length # samples) of the start timestamp of each sample.
+    raw_list_data: list<np.array>
+        List (with length # samples) of arrays with dimension (sample length, # channels).
+    channels_names: list<str>
+        List of strings, corresponding to the names of the channels.
+    '''
+    try:
+        sample_length = sample_duration * fs
+
+        raw_df = pd.read_parquet(filepath, engine="pyarrow")
+        raw_np = np.array(np.split(raw_df.values, np.arange(
+            sample_length, len(raw_df), sample_length), axis=0))
+        
+        channels_names = raw_df.columns.to_list()[1:]
+
+        # removes sample if there is any NaN
+        raw_np_noNaN = raw_np[~np.isnan(raw_np).any(axis=(1, 2))]
+
+        raw_np_timestamps = raw_np_noNaN[:, 0, 0]
+        raw_np_data = raw_np_noNaN[:, :, 1:]
+
+        raw_np_data = scipy.signal.decimate(raw_np_data, decimate_factor, axis=1)
+
+        # transform first dimension (samples) into list
+        raw_np_data = np.split(raw_np_data, raw_np_data.shape[0], axis=0)
+
+        raw_list_timestamps = list(raw_np_timestamps)
+        raw_list_data = [np.squeeze(x, axis=0) for x in raw_np_data]
+
+        return raw_list_timestamps, raw_list_data, channels_names
+
+    except Exception as e:
+        return None, None, None

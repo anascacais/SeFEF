@@ -1,18 +1,32 @@
 # built-in
 import os
-from datetime import datetime, timezone
 
 # third-party
 import pandas as pd
-import numpy as np
 from sefef import evaluation 
 
 # local 
 from data import get_sz_onset_df
-from config import patient_id, data_folder_path, sampling_frequency
 
-
-def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_frequency=sampling_frequency):
+def prepare_data(data_folder_path, patient_id, sampling_frequency):
+    ''' Get metadata on available data files and prepare TSCV 
+    
+    Parameters
+    ---------- 
+    data_folder_path : str
+        Path to folder containing 'train_labels.csv'.
+    patient_id : str
+        Patient ID to filter data from the dataframe containing file metadata.
+    sampling_frequency: int
+        Frequency at which the data is stored in each file.
+    
+    Returns
+    -------
+    dataset : Dataset
+        Instance of Dataset.
+    tscv : TimeSeriesCV
+        Instance of TimeSeriesCV.
+    ''' 
 
     # Convert file metadata and sz onsets into expected format
     train_labels_all = pd.read_csv(os.path.join(data_folder_path, 'train_labels.csv'))
@@ -33,17 +47,11 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     sz_onset_df = get_sz_onset_df(train_labels.reset_index()[['utc-datetime', 'label']].to_numpy(), mpl=10) # mpl set to 10min to account for the pre-ictal labeling done in MSG2022
     sz_onsets = (sz_onset_df.index.astype('int') // 10**9).tolist()
 
+
+    # Evaluation module 
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=sampling_frequency)
     
     tscv = evaluation.TimeSeriesCV()
-    tscv.split(dataset, iteratively=False)
-    # for train_start_ts, test_start_ts, test_end_ts in tscv.split(dataset):
-    #     pass
+    tscv.split(dataset, iteratively=True)
 
-    tscv.plot(dataset)
-
-
-
-
-if __name__ == '__main__':
-    main()
+    return dataset, tscv
