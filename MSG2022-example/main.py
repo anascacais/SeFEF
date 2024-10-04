@@ -18,11 +18,17 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     # Evaluation module 
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=sampling_frequency)
     tscv = evaluation.TimeSeriesCV()
-    tscv.split(dataset, iteratively=False)
+    tscv.split(dataset, iteratively=False, plot=True)
     #tscv.plot(dataset)
 
-    for ifold, (train_start_ts, test_start_ts, test_end_ts) in enumerate(tscv.split_ind_ts):
-        pass
+    # # Segmentation and feature extraction
+    # for ifold, (train_start_ts, test_start_ts, test_end_ts) in enumerate(tscv.split_ind_ts):
+        
+    #     train_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[train_start_ts : test_start_ts]['filepath'].tolist()]
+    #     test_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[test_start_ts : test_end_ts]['filepath'].tolist()]
+
+    #     if not os.path.exists(preprocessed_data_path):
+    #         os.makedirs(preprocessed_data_path)
 
     # # Segmentation and feature extraction
     # for ifold, (train_start_ts, test_start_ts, test_end_ts) in enumerate(tscv.split(dataset)):
@@ -30,8 +36,8 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     #     train_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[train_start_ts : test_start_ts]['filepath'].tolist()]
     #     test_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[test_start_ts : test_end_ts]['filepath'].tolist()]
 
-    #     if not os.path.exists(preprocessed_data_path):
-    #         os.makedirs(preprocessed_data_path)
+        # if not os.path.exists(preprocessed_data_path):
+        #     os.makedirs(preprocessed_data_path)
 
     #     create_hdf5_file(
     #         train_files, test_files,

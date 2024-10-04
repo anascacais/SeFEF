@@ -59,7 +59,7 @@ class TimeSeriesCV:
         self.n_folds = None
         self.split_ind_ts = None
 
-    def split(self, dataset, iteratively=True):
+    def split(self, dataset, iteratively=False, plot=False):
         """ Get timestamp indices to split data for time series cross-validation. 
         - The train set would be given by metadata.loc[train_start_ts : test_start_ts].
         - The test set would be given by metadata.loc[test_start_ts : test_end_ts].
@@ -68,8 +68,10 @@ class TimeSeriesCV:
         -----------
         dataset : Dataset
             Instance of Dataset.
-        iteratively : bool, ooptional
-            If the split is meant to return the timestamp indices for each fold iteratively (True) or to simply update 'split_ind_ts' (False). Defaults to True.
+        iteratively : bool, defaults to False
+            If the split is meant to return the timestamp indices for each fold iteratively (True) or to simply update 'split_ind_ts' (False). 
+        plot : bool, defaults to False
+            If a diagram illustrating the TSCV should be shown at the end. 'iteratively' cannot be set to True
 
         Returns:
         -------
@@ -80,6 +82,7 @@ class TimeSeriesCV:
         test_end_ts : int
             Timestamp index for the end of the test set.
         """
+        
         if self.initial_train_duration is None:
             total_recorded_duration = dataset.files_metadata['total_duration'].sum()
             self.initial_train_duration = (1/3) * total_recorded_duration
@@ -99,10 +102,11 @@ class TimeSeriesCV:
         initial_cutoff_ts = self._check_criteria(dataset, initial_cutoff_ts)
 
         if iteratively:
+            if plot: raise ValueError("The variables 'iteratively' and 'plot' cannot both be set to True.")
             return self._expanding_window_split(dataset, initial_cutoff_ts)
         else: 
-            for _ in self._expanding_window_split(dataset, initial_cutoff_ts):
-                pass
+            for _ in self._expanding_window_split(dataset, initial_cutoff_ts): pass
+            if plot: self.plot(dataset)
             return None
 
 
