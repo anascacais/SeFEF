@@ -1,10 +1,18 @@
 # built-in
+import os
 import datetime
 
 # third-party
+import h5py
 import numpy as np
 import pandas as pd
 import scipy
+from sefef import evaluation 
+
+# local 
+from features import extract_features
+from config import features_list
+
 
 
 def get_sz_onset_df(labels_array, mpl=10):
@@ -16,7 +24,6 @@ def get_sz_onset_df(labels_array, mpl=10):
         numpy array with dimension (points in sample, samples, 2),
             where the first dimension is the time series within each sample (with resolution=time_resolution) and
             the third dimension corresponds to the datetime of the start of that point (dtype='int64') as well as the label (dtype='int64')
-
     mpl: int
         minimum prediction latency in minutes
 
@@ -24,7 +31,6 @@ def get_sz_onset_df(labels_array, mpl=10):
     -------
     sz_onset_df: pandas datafram
         dataframe with the seizure onset datetimes
-
     """
 
     _, last_preictal_np_indx = get_indx_first_last_preictal_samples(
@@ -65,6 +71,92 @@ def get_indx_first_last_preictal_samples(labels_array):
     return first_preictal_np_indx, last_preictal_np_indx
 
 
+def get_metadata(data_folder_path, patient_id):
+    ''' Get metadata on available data files
+    
+    Parameters
+    ---------- 
+    data_folder_path : str
+        Path to folder containing 'train_labels.csv'.
+    patient_id : str
+        Patient ID to filter data from the dataframe containing file metadata.
+    sampling_frequency: int
+        Frequency at which the data is stored in each file.
+    
+    Returns
+    -------
+    files_metadata : pd.DataFrame
+        Dataframe containing metadata on the data files. Contains the following columns:
+        - 'filepath' (str): fiepath to file (with 'data_folder_path' as parent folder).
+        - 'first_timestamp' (int64): unix timestamp (in seconds) of the first data point in file.
+        - 'total_duration' (int64): duration (in seconds) of the data within the file.
+    sz_onsets : list
+        Contains the unixe timstamp of the start of the files containing the onset of seizures
+    ''' 
+
+    # Convert file metadata and sz onsets into expected format
+    train_labels_all = pd.read_csv(os.path.join(data_folder_path, 'train_labels.csv'))
+    train_labels_all[['id', 'session', 'utc-datetime']] = train_labels_all['filepath'].str.split('/', expand=True)
+    train_labels_all['utc-datetime'] = train_labels_all['utc-datetime'].str.strip('.parquet')
+
+    train_labels = train_labels_all.loc[train_labels_all['id'] == patient_id, :]
+
+    ## Convert UTC datetime to Unix timestamp
+    train_labels['utc-datetime'] = pd.to_datetime(train_labels['utc-datetime'], format='UTC-%Y_%m_%d-%H_%M_%S', utc=True)
+    files_metadata = pd.DataFrame({
+        'filepath': train_labels.reset_index()['filepath'], 
+        'first_timestamp': train_labels.reset_index()['utc-datetime'].astype('int') // 10**9, # Convert to seconds
+    }) 
+    files_metadata['total_duration'] = [10*60] * len(files_metadata) # 10min in seconds
+
+    ## Get seizure onsets
+    sz_onset_df = get_sz_onset_df(train_labels.reset_index()[['utc-datetime', 'label']].to_numpy(), mpl=10) # mpl set to 10min to account for the pre-ictal labeling done in MSG2022
+    sz_onsets = (sz_onset_df.index.astype('int') // 10**9).tolist()
+
+    return files_metadata, sz_onsets
+
+    
+
+def create_dataset(train_files, test_files, dataset_filepath, sampling_frequency):
+    ''' Create hdf5 dataset
+    
+    Parameters
+    ---------- 
+    param1 : int
+        Description
+    
+    Returns
+    -------
+    result : bool
+        Description
+    ''' 
+
+    with h5py.File(dataset_filepath, 'w') as hdf:
+        
+        dataset_2_create = {'train': train_files, 'test':test_files}
+
+        for dataset_key in dataset_2_create.keys():
+
+            for i, filename in enumerate(train_files):
+
+                timestamps_data, data, channels_names = read_and_segment(filename, fs=sampling_frequency, decimate_factor=8)
+                data = extract_features(timestamps_data, data, channels_names, features_list)
+
+                # try:
+                #     dataset = (timestamps_data, data, np.array(
+                #         [label] * len(timestamps_data))[:, np.newaxis])
+                    
+                #     if dataset_name not in hdf.keys():
+                #         create_dataset(hdf, dataset, prefix=dataset_key)
+                #     else:
+                #         update_dataset(hdf, dataset, prefix=dataset_key)
+
+                # except Exception as e:
+                #     print(filename, e)
+
+                print(f"Processed {i+1}/{len(dataset_2_create[dataset_key])}", end="\r")
+
+
 
 def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  # 60s * 128Hz
     ''' Reads a file with 10min duration, splits into 60s samples, drops the samples with NaNs and returns a list with length correspoding to the number of samples and each element an array with
@@ -72,17 +164,21 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
     Parameters
     ---------- 
-    filepath: str
-        Filepath for parquet file, with dataframe-like object, with 76800 rows (data points) and 9 columns (channels)
-    decimate_factor: int
+    filepath : str
+        Filepath to parquet file, with dataframe-like object, with 76800 rows (data points) and 9 columns (channels)
+    decimate_factor : int, defaults to 8
         Decimates each sample by this factor (e.g. decimate_factor=8 -> new_fs=16Hz)
-
+    fs : int, defaults to 128
+        Frequency at which the data is stored. 
+    sample_duration : int, defaults to 60s
+        Desired duration for the samples (in seconds). 
+        
     Returns
     -------
-    raw_list_timestamps: list<float>
-        List (with length # samples) of the start timestamp of each sample.
-    raw_list_data: list<np.array>
-        List (with length # samples) of arrays with dimension (sample length, # channels).
+    raw_np_timestamps: array-like, shape (# samples, )
+        Contains the start timestamp of each sample.
+    raw_np_data: array-like, shape (# samples, # data points in sample, # channels)
+        Data array.
     channels_names: list<str>
         List of strings, corresponding to the names of the channels.
     '''
@@ -103,13 +199,8 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
         raw_np_data = scipy.signal.decimate(raw_np_data, decimate_factor, axis=1)
 
-        # transform first dimension (samples) into list
-        raw_np_data = np.split(raw_np_data, raw_np_data.shape[0], axis=0)
-
-        raw_list_timestamps = list(raw_np_timestamps)
-        raw_list_data = [np.squeeze(x, axis=0) for x in raw_np_data]
-
-        return raw_list_timestamps, raw_list_data, channels_names
+        return raw_np_timestamps, raw_np_data, channels_names
 
     except Exception as e:
+        print(e)
         return None, None, None
