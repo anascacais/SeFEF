@@ -5,7 +5,7 @@ import os
 from sefef import evaluation
 
 # local 
-from data import get_metadata, create_dataset
+from data import get_metadata, create_hdf5_file
 from config import patient_id, data_folder_path, sampling_frequency
 
 
@@ -17,20 +17,27 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
     # Evaluation module 
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=sampling_frequency)
-    
     tscv = evaluation.TimeSeriesCV()
-    tscv.split(dataset, iteratively=True)
+    tscv.split(dataset, iteratively=False)
+    #tscv.plot(dataset)
 
-    # Segmentation and feature extraction
-    for ifold, (train_start_ts, test_start_ts, test_end_ts) in enumerate(tscv.split(dataset)):
+    for ifold, (train_start_ts, test_start_ts, test_end_ts) in enumerate(tscv.split_ind_ts):
+        pass
 
-        train_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[train_start_ts : test_start_ts]['filepath'].tolist()]
-        test_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[test_start_ts : test_end_ts]['filepath'].tolist()]
+    # # Segmentation and feature extraction
+    # for ifold, (train_start_ts, test_start_ts, test_end_ts) in enumerate(tscv.split(dataset)):
 
-        if not os.path.exists(preprocessed_data_path):
-            os.makedirs(preprocessed_data_path)
+    #     train_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[train_start_ts : test_start_ts]['filepath'].tolist()]
+    #     test_files = [os.path.join(data_folder_path, file) for file in dataset.metadata.loc[test_start_ts : test_end_ts]['filepath'].tolist()]
 
-        create_dataset(train_files, test_files, dataset_filepath=f'TSCV_{ifold+1}.h5', sampling_frequency=sampling_frequency)
+    #     if not os.path.exists(preprocessed_data_path):
+    #         os.makedirs(preprocessed_data_path)
+
+    #     create_hdf5_file(
+    #         train_files, test_files,
+    #         dataset_filepath=os.path.join(preprocessed_data_path, f'TSCV_{ifold+1}.h5'),
+    #         sampling_frequency=sampling_frequency
+    #     )
 
      
 
