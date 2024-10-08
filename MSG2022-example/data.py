@@ -116,15 +116,13 @@ def get_metadata(data_folder_path, patient_id):
 
     
 
-def create_hdf5_file(train_files, test_files, dataset_filepath, sampling_frequency):
+def create_hdf5_dataset(files, dataset_filepath, sampling_frequency):
     ''' Create hdf5 files containing a 'train' and a 'test' dataset.
     
     Parameters
     ---------- 
-    train_files : list
-        Contains the complete path for the files to include in the train set.
-    test_files : list
-         Contains the complete path for the files to include in the test set.
+    files : list
+        Contains the complete path for the files to include in the dataset.
     dataset_filepath : str
         Complete path to the hdf5 file.
     sampling_frequency : int
@@ -136,33 +134,30 @@ def create_hdf5_file(train_files, test_files, dataset_filepath, sampling_frequen
 
     with h5py.File(dataset_filepath, 'w') as hdf:
         
-        dataset_2_create = {'train': train_files, 'test':test_files}
-        for dataset_key in dataset_2_create.keys():
-            dataset_name = f'{dataset_key}_data'
-            for i, filepath in enumerate(train_files):
+        for i, filepath in enumerate(files):
 
-                try:
-                    timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
-                    #data = extract_ts_features(timestamps_data, data, channels_names, features_list)
+            try:
+                timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
+                #data = extract_ts_features(timestamps_data, data, channels_names, features_list)
 
-                    # transform first dimension (samples) into list
-                    data = np.split(data, data.shape[0], axis=0)
-                    data = [np.squeeze(x, axis=0) for x in data]
-                    timestamps_data = list(timestamps_data)
+                # transform first dimension (samples) into list
+                data = np.split(data, data.shape[0], axis=0)
+                data = [np.squeeze(x, axis=0) for x in data]
+                timestamps_data = list(timestamps_data)
 
-                except ZeroDivisionError:
-                    print(f'Not enough data on {filepath}\n')
-                    continue
+            except ZeroDivisionError:
+                print(f'Not enough data on {filepath}\n')
+                continue
 
-                dataset = (timestamps_data, data)
-                
-                if dataset_name not in hdf.keys():
-                    create_dataset(hdf, dataset, prefix=dataset_key)
-                else:
-                    update_dataset(hdf, dataset, prefix=dataset_key)
+            dataset = (timestamps_data, data)
+            
+            if 'data' not in hdf.keys():
+                create_dataset(hdf, dataset)
+            else:
+                update_dataset(hdf, dataset)
 
 
-                print(f"Processed {i+1}/{len(dataset_2_create[dataset_key])}", end="\r")
+            print(f"Processed {i+1}/{len(files)}", end="\r")
 
 
 
@@ -215,19 +210,19 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
 
 
-def create_dataset(hdf, data, prefix):
-    hdf.create_dataset(f'{prefix}_timestamps',
+def create_dataset(hdf, data):
+    hdf.create_dataset('timestamps',
                        data=data[0], maxshape=(None,), dtype='int64') # float64??
-    hdf.create_dataset(f'{prefix}_data', data=data[1], maxshape=(
+    hdf.create_dataset(f'data', data=data[1], maxshape=(
         None, None, None,), dtype='float32')
 
 
-def update_dataset(hdf, data, prefix):
+def update_dataset(hdf, data):
     # check data validity
     if data != None:
-        hdf[f'{prefix}_timestamps'].resize(
-            (hdf[f'{prefix}_timestamps'].shape[0] + len(data[0])), axis=0)
-        hdf[f'{prefix}_timestamps'][-len(data[0]):] = data[0]
-        hdf[f'{prefix}_data'].resize(
-            (hdf[f'{prefix}_data'].shape[0] + len(data[1])), axis=0)
-        hdf[f'{prefix}_data'][-len(data[1]):] = data[1]
+        hdf[f'timestamps'].resize(
+            (hdf[f'timestamps'].shape[0] + len(data[0])), axis=0)
+        hdf[f'timestamps'][-len(data[0]):] = data[0]
+        hdf[f'data'].resize(
+            (hdf[f'data'].shape[0] + len(data[1])), axis=0)
+        hdf[f'data'][-len(data[1]):] = data[1]
