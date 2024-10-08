@@ -9,7 +9,7 @@ def add_annotations(h5dataset, sz_onsets_ts, preictal_duration=3600, prediction_
     ---------- 
     h5dataset : HDF5 file
         HDF5 file object with the following datasets:
-        - "data": each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels) 
+        - "data": each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels). 
         - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
     sz_onsets_ts : array-like, shape (#sz onsets, )
         Contains the unix timestamps (in seconds) of the onsts of seizures. 

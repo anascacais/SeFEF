@@ -41,6 +41,8 @@ class TimeSeriesCV:
         - The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].
     plot(dataset) :
         Plots the TSCV folds with the available data.
+    iterate() : 
+        Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
     
     Raises
     -------
@@ -272,6 +274,38 @@ class TimeSeriesCV:
                 color=color  # Set the color of the Unicode text here
             )
         )
+    
+    def iterate(self, h5dataset):
+        ''' Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
+        
+        Parameters
+        ---------- 
+        h5dataset : HDF5 file
+            HDF5 file object with the following datasets:
+            - "data": each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels) 
+            - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
+            - "annotations": contains the labels (0: interictal, 1: preictal) for each sample in the "data" dataset, with shape (#samples, ).
+        
+        Returns
+        -------
+        tuple: 
+            - ((train_data, train_annotations, train_timestamps), (test_data, test_annotations, test_timestamps))
+            - Where:
+                - "*_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
+                - "*_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
+                - "*_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
+        ''' 
+        timestamps = h5dataset['timestamps'][()]
+
+        for train_start_ts, test_start_ts, test_end_ts in self.split_ind_ts:
+
+            train_indx = np.where(np.logical_and(timestamps >= train_start_ts, timestamps < test_start_ts))
+            test_indx = np.where(np.logical_and(timestamps >= test_start_ts, timestamps < test_end_ts))
+            
+            yield (
+                (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx], h5dataset['timestamps'][train_indx]),
+                (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx], h5dataset['annotations'][test_indx])
+                )
 
 
         
