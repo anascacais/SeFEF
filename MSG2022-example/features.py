@@ -3,6 +3,113 @@
 import numpy as np
 import scipy
 
+def extract_features(start_timestamps, samples, channels_names, features2extract):
+    ''' Extract features from "features2extract".  
+    
+    Parameters
+    ---------- 
+    raw_np_timestamps: array-like, shape (# samples, )
+        Contains the start timestamp of each sample.
+    raw_np_data: array-like, shape (# samples, # data points in sample, # channels)
+        Data array.
+    channels_names: list<str>
+        List of strings, corresponding to the names of the channels.
+    features2extract: dict
+        Dict where keys correspond to the names of the channels in "channels_names" and the values are lists with the names of features. The features can be statistical, EDA event-based, or Hjorth features. Feature names should be the ones from the following list:
+            - Statistical: "mean", "power", "std", "kurtosis", "skewness", "mean_1stdiff", "mean_2nddiff", "entropy".
+            - EDA event-based: "SCR_amplitude", "SCR_peakcount", "mean_SCR_amplitude", "mean_SCR_risetime", "sum_SCR_amplitudes", "sum_SCR_risetimes", "SCR_AUC".
+            - Hjorth: "hjorth_activity", "hjorth_mobility", "hjorth_complexity".
+
+    Returns
+    -------
+    features: array-like, shape (# samples, # data points in sample)
+       Data array with features extracted.
+
+    Raises
+    ------
+    ValueError :
+        Raised when a feature name in "features2extract" is not a valid feature. 
+    ''' 
+    if samples is None:
+        return None
+
+    feat2function = {'mean': extract_mean, 'power': extract_power, 'std': extract_std, 'kurtosis': extract_kurtosis, 'skewness': extract_skewness,
+                    'mean_1stdiff': extract_mean_1stdiff, 'mean_2nddiff': extract_mean_2nddiff, 'entropy': extract_entropy, 'SCR_amplitude': extract_SCR_amplitude, 'SCR_peakcount': extract_SCR_peakcount, 'mean_SCR_amplitude': extract_mean_SCR_amplitude, 'mean_SCR_risetime': extract_mean_SCR_risetime, 'sum_SCR_amplitudes': extract_sum_SCR_amplitudes, 'sum_SCR_risetimes': extract_sum_SCR_risetimes, 'SCR_AUC': extract_SCR_AUC, 'hjorth_activity': extract_hjorth_activity, 'hjorth_mobility': extract_hjorth_mobility, 'hjorth_complexity': extract_hjorth_complexity}
+    
+    for channel in features2extract.keys():
+
+        for feature_name in features2extract[channel]:
+
+            if feature_name not in feat2function:
+                raise ValueError(f"{feature_name} is not a valid feature.")
+            
+
+
+# Statistical features
+def extract_power():
+    pass
+
+def extract_mean():
+    pass
+
+def extract_std():
+    pass
+
+def extract_kurtosis():
+    pass
+
+def extract_skewness():
+    pass
+
+def extract_mean_1stdiff():
+    pass
+
+def extract_mean_2nddiff():
+    pass
+
+def extract_entropy():
+    pass
+
+# EDA event-based features
+def extract_SCR_amplitude():
+    pass
+
+
+def extract_SCR_peakcount():
+    pass
+
+def extract_mean_SCR_amplitude():
+    pass
+
+def extract_mean_SCR_risetime():
+    pass
+
+def extract_sum_SCR_amplitudes():
+    pass
+
+def extract_sum_SCR_risetimes():
+    pass
+
+def extract_SCR_AUC():
+    pass
+
+
+# Hjorth features
+def extract_hjorth_activity():
+    pass
+
+def extract_hjorth_mobility():
+    pass
+
+def extract_hjorth_complexity():
+    pass
+
+
+
+
+
+# Others 
+
 def extract_ts_features(start_timestamps, samples, channels_names, features_list):
     ''' Compute features from features_list and keep original time series as channels. 
     

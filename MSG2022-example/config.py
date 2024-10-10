@@ -20,7 +20,13 @@ train_configurations = {
     "experiment_id": "0",
 }
 
-features_list = ['ToD', 'SQI EDA', 'SQI BVP'] # features to extract
+features2extract = {
+    'acc_mag': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'entropy'],
+    'bvp': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'entropy'],
+    'eda': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'entropy', 'SCR_amplitude', 'SCR_peakcount', 'mean_SCR_amplitude', 'mean_SCR_risetime', 'sum_SCR_amplitudes', 'sum_SCR_risetimes', 'SCR_AUC', 'hjorth_activity', 'hjorth_mobility', 'hjorth_complexity'],
+    'hr': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'entropy'],
+}
+
 sqi_channels = ['SQI EDA', 'SQI BVP'] # sqi channels to use
 sampling_frequency = 128 # in Hz
 

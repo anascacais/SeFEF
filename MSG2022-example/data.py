@@ -9,9 +9,7 @@ import pandas as pd
 import scipy
 
 # local 
-from features import extract_ts_features
-from config import features_list
-
+from features import extract_features
 
 
 def get_sz_onset_df(labels_array, mpl=10):
@@ -116,7 +114,7 @@ def get_metadata(data_folder_path, patient_id):
 
     
 
-def create_hdf5_dataset(files, dataset_filepath, sampling_frequency):
+def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2extract):
     ''' Create hdf5 files containing a 'train' and a 'test' dataset.
     
     Parameters
@@ -127,6 +125,12 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency):
         Complete path to the hdf5 file.
     sampling_frequency : int
         Frequency at which the data is stored in each file.
+    features2extract: dict
+        Dict where keys correspond to the names of the channels in "channels_names" and the values are lists with the names of features. The features can be statistical, EDA event-based, or Hjorth features. Feature names should be the ones from the following list:
+            - Statistical: "mean", "power", "std", "kurtosis", "skewness", "mean_1stdiff", "mean_2nddiff", "entropy".
+            - EDA event-based: "SCR_amplitude", "SCR_peakcount", "mean_SCR_amplitude", "mean_SCR_risetime", "sum_SCR_amplitudes", "sum_SCR_risetimes", "SCR_AUC".
+            - Hjorth: "hjorth_activity", "hjorth_mobility", "hjorth_complexity".
+    
     Returns
     -------
     None
@@ -138,7 +142,7 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency):
 
             try:
                 timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
-                #data = extract_ts_features(timestamps_data, data, channels_names, features_list)
+                data = extract_features(timestamps_data, data, channels_names, features2extract)
 
                 # transform first dimension (samples) into list
                 data = np.split(data, data.shape[0], axis=0)

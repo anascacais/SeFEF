@@ -11,7 +11,7 @@ from sefef import evaluation, labeling
 
 # local 
 from data import get_metadata, create_hdf5_dataset
-from config import patient_id, data_folder_path, sampling_frequency
+from config import patient_id, data_folder_path, sampling_frequency, features2extract
 
 
 def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_frequency=sampling_frequency):
@@ -23,7 +23,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     # Evaluation module 
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=sampling_frequency)
     tscv = evaluation.TimeSeriesCV()
-    tscv.split(dataset, iteratively=False, plot=False)
+    tscv.split(dataset, iteratively=False, plot=True)
 
     # Segmentation
     ## List all files for segmentation
@@ -31,8 +31,8 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     files = [os.path.join(data_folder_path, file) for file in files]
 
     ## Segment files
-    if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
-        create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency)
+    #if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
+    create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
     
     # Labeling module
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r+') as h5dataset:
@@ -49,10 +49,11 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             X_train, y_train, _ = train_data
             X_test, y_test, _ = test_data
             
-            logr = linear_model.LogisticRegression()
-            logr.fit(X_train, y_train)
+            # Logistic regression
+            model = linear_model.LogisticRegression()
+            model.fit(X_train, y_train)
 
-            y_pred = logr.predict(X_test)
+            y_pred = model.predict(X_test)
             pass
 
 if __name__ == '__main__':
