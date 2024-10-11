@@ -142,7 +142,7 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
 
             try:
                 timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
-                data = extract_features(timestamps_data, data, channels_names, features2extract)
+                data = extract_features(data, channels_names, features2extract)
 
                 # transform first dimension (samples) into list
                 data = np.split(data, data.shape[0], axis=0)

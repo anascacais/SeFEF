@@ -3,14 +3,14 @@
 import numpy as np
 import scipy
 
-def extract_features(start_timestamps, samples, channels_names, features2extract):
+def extract_features(samples, channels_names, features2extract):
     ''' Extract features from "features2extract".  
     
     Parameters
     ---------- 
-    raw_np_timestamps: array-like, shape (# samples, )
+    raw_np_timestamps: array-like, shape (#samples, )
         Contains the start timestamp of each sample.
-    raw_np_data: array-like, shape (# samples, # data points in sample, # channels)
+    raw_np_data: array-like, shape (#samples, #data points in sample, #channels)
         Data array.
     channels_names: list<str>
         List of strings, corresponding to the names of the channels.
@@ -22,7 +22,7 @@ def extract_features(start_timestamps, samples, channels_names, features2extract
 
     Returns
     -------
-    features: array-like, shape (# samples, # data points in sample)
+    features: array-like, shape (#samples, #data points in sample)
        Data array with features extracted.
 
     Raises
@@ -32,77 +32,99 @@ def extract_features(start_timestamps, samples, channels_names, features2extract
     ''' 
     if samples is None:
         return None
+    
+    features = []
 
-    feat2function = {'mean': extract_mean, 'power': extract_power, 'std': extract_std, 'kurtosis': extract_kurtosis, 'skewness': extract_skewness,
-                    'mean_1stdiff': extract_mean_1stdiff, 'mean_2nddiff': extract_mean_2nddiff, 'entropy': extract_entropy, 'SCR_amplitude': extract_SCR_amplitude, 'SCR_peakcount': extract_SCR_peakcount, 'mean_SCR_amplitude': extract_mean_SCR_amplitude, 'mean_SCR_risetime': extract_mean_SCR_risetime, 'sum_SCR_amplitudes': extract_sum_SCR_amplitudes, 'sum_SCR_risetimes': extract_sum_SCR_risetimes, 'SCR_AUC': extract_SCR_AUC, 'hjorth_activity': extract_hjorth_activity, 'hjorth_mobility': extract_hjorth_mobility, 'hjorth_complexity': extract_hjorth_complexity}
+    feat2function = {'mean': _extract_mean, 'power': _extract_power, 'std': _extract_std, 'kurtosis': _extract_kurtosis, 'skewness': _extract_skewness,
+                    'mean_1stdiff': _extract_mean_1stdiff, 'mean_2nddiff': _extract_mean_2nddiff, 'shannon_entropy': _extract_shannon_entropy, 'SCR_amplitude': _extract_SCR_amplitude, 'SCR_peakcount': _extract_SCR_peakcount, 'mean_SCR_amplitude': _extract_mean_SCR_amplitude, 'mean_SCR_risetime': _extract_mean_SCR_risetime, 'sum_SCR_amplitudes': _extract_sum_SCR_amplitudes, 'sum_SCR_risetimes': _extract_sum_SCR_risetimes, 'SCR_AUC': _extract_SCR_AUC, 'hjorth_activity': _extract_hjorth_activity, 'hjorth_mobility': _extract_hjorth_mobility, 'hjorth_complexity': _extract_hjorth_complexity}
     
     for channel in features2extract.keys():
-
+        channel_ind = channels_names.index(channel)
         for feature_name in features2extract[channel]:
 
-            if feature_name not in feat2function:
+            if feature_name not in feat2function.keys():
                 raise ValueError(f"{feature_name} is not a valid feature.")
+            
+            try:
+                new_feature = feat2function[feature_name](samples[:, :, channel_ind])
+            except Exception as e:
+                print(e)
+            features += [new_feature]
+
+    return np.concat(features, axis=1)
             
 
 
+
 # Statistical features
-def extract_power():
-    pass
+def _extract_mean(array):
+    """Internal method that computes the mean of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return np.mean(array, axis=1)
 
-def extract_mean():
-    pass
+def _extract_power(array):
+    """Internal method that computes the average power of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return np.mean(array**2, axis=1)
 
-def extract_std():
-    pass
+def _extract_std(array):
+    """Internal method that computes the standard deviation of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return np.std(array, axis=1)
 
-def extract_kurtosis():
-    pass
+def _extract_kurtosis(array):
+    """Internal method that computes the kurtosis of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return scipy.stats.kurtosis(array)
 
-def extract_skewness():
-    pass
+def _extract_skewness(array):
+    """Internal method that computes the skewness of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return scipy.stats.skew(array)
 
-def extract_mean_1stdiff():
-    pass
+def _extract_mean_1stdiff(array):
+    """Internal method that computes the mean of the first difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return np.mean(np.diff(array, axis=1), axis=1)
 
-def extract_mean_2nddiff():
-    pass
+def _extract_mean_2nddiff(array):
+    """Internal method that computes the mean of the second difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return np.mean(np.diff(np.diff(array, axis=1), axis=1), axis=1)
 
-def extract_entropy():
-    pass
+def _extract_shannon_entropy(array):
+    """Internal method that computes the Shannon entropy of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
+    return scipy.stats.entropy(array, axis=1)
 
 # EDA event-based features
-def extract_SCR_amplitude():
+def _extract_SCR_amplitude():
     pass
 
 
-def extract_SCR_peakcount():
+def _extract_SCR_peakcount():
     pass
 
-def extract_mean_SCR_amplitude():
+def _extract_mean_SCR_amplitude():
     pass
 
-def extract_mean_SCR_risetime():
+def _extract_mean_SCR_risetime():
     pass
 
-def extract_sum_SCR_amplitudes():
+def _extract_sum_SCR_amplitudes():
     pass
 
-def extract_sum_SCR_risetimes():
+def _extract_sum_SCR_risetimes():
     pass
 
-def extract_SCR_AUC():
+def _extract_SCR_AUC():
     pass
 
 
 # Hjorth features
-def extract_hjorth_activity():
-    pass
+def _extract_hjorth_activity(array):
+    """Internal method that computes the Hjorth activity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, ). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
+    return np.sum((array - np.mean(array, axis=1)[:, np.newaxis])**2, axis=1)
 
-def extract_hjorth_mobility():
-    pass
+def _extract_hjorth_mobility(array):
+    """Internal method that computes the Hjorth mobility of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, ). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
+    return np.sqrt(np.multiply(np.var(array, axis=1), np.var(np.diff(array, axis=1), axis=1)))
 
-def extract_hjorth_complexity():
-    pass
+def _extract_hjorth_complexity(array):
+    """Internal method that computes the Hjorth complexity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, ). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
+    return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))
 
 
 
