@@ -40,13 +40,20 @@ def extract_features(samples, channels_names, features2extract):
     
     for channel in features2extract.keys():
         channel_ind = channels_names.index(channel)
+
+        if any(['SCR' in ft for ft in features2extract[channel]]): 
+            scr_events = _eda_events(samples[:, :, channel_ind])
+
         for feature_name in features2extract[channel]:
 
             if feature_name not in feat2function.keys():
                 raise ValueError(f"{feature_name} is not a valid feature.")
             
             try:
-                new_feature = feat2function[feature_name](samples[:, :, channel_ind])
+                if 'SCR' in feature_name:
+                    new_feature = feat2function[feature_name](scr_events)
+                else:
+                    new_feature = feat2function[feature_name](samples[:, :, channel_ind])
             except Exception as e:
                 print(e)
             features += [new_feature]
@@ -90,26 +97,32 @@ def _extract_shannon_entropy(array):
     return scipy.stats.entropy(array, axis=1)
 
 # EDA event-based features
-def _extract_SCR_amplitude():
+def _extract_SCR_amplitude(scr_events):
+    """Internal method that returns the ???? from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
-
-def _extract_SCR_peakcount():
+def _extract_SCR_peakcount(scr_events):
+    """Internal method that returns the number of peaks from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
-def _extract_mean_SCR_amplitude():
+def _extract_mean_SCR_amplitude(scr_events):
+    """Internal method that returns the mean SCR amplitude from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
-def _extract_mean_SCR_risetime():
+def _extract_mean_SCR_risetime(scr_events):
+    """Internal method that returns the mean SCR rise time from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
-def _extract_sum_SCR_amplitudes():
+def _extract_sum_SCR_amplitudes(scr_events):
+    """Internal method that returns the sum of SCR amplitudes from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
-def _extract_sum_SCR_risetimes():
+def _extract_sum_SCR_risetimes(scr_events):
+    """Internal method that returns the sum of SCR rise times from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
-def _extract_SCR_AUC():
+def _extract_SCR_AUC(scr_events):
+    """Internal method that returns ??? from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
     pass
 
 
@@ -127,7 +140,63 @@ def _extract_hjorth_complexity(array):
     return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))
 
 
+def _eda_events(array, min_amplitude=0.1):
+    """Internal method that identifies EDA events and extracts the corresponding onsets, peaks, and amplitudes."""
 
+    zeros = _find_extrema_indx(array, mode='min')  # get zeros
+    
+    for z in range(len(zeros)):
+        if z == len(zeros) - 1:  # last zero
+            s = array[zeros[z]:]  # signal amplitude between events
+        else:
+            s = array[zeros[z]:zeros[z + 1]]  # signal amplitude between events
+            
+        pk = _find_extrema_indx(signal=s, mode='max')  # get pk between events
+        for p in pk:
+            if (s[p] - s[0]) > min_amplitude:  # only count events with minimum amplitude
+                peaks += [zeros[z] + p]
+                onsets += [zeros[z]]
+                amps += [s[p] - s[0]]
+    
+    # sanity check
+    if len(onsets) == 0:
+        raise ValueError("Could not find SCR pulses. Try to adjust min_amplitude.")
+    
+    # convert to array
+    onsets, peaks, amps = np.array(onsets), np.array(peaks), np.array(amps)
+    
+    return onsets, peaks, amps
+    
+
+def _find_extrema_indx(array=None, mode="both"):
+    """Locate local extrema points in a signal, returning an array (dtype 'bool') with the same shape as 'array' and True where there are extrema. Adapted from BioSSPy. Based on Fermat's Theorem."""
+
+    # check inputs
+    if array is None:
+        raise TypeError("Please specify an input signal.")
+
+    if mode not in ["max", "min", "both"]:
+        raise ValueError("Unknwon mode %r." % mode)
+
+    aux = np.diff(np.sign(np.diff(array, axis=1)), axis=1)
+
+    if mode == "both":
+        aux = np.abs(aux)
+        inflection_points = aux > 0
+    elif mode == "max":
+        inflection_points = aux < 0
+    elif mode == "min":
+        inflection_points = aux > 0
+    
+    extrema = np.zeros_like(array, dtype=bool)
+    extrema[:, 1:-1] = inflection_points[:, :]
+
+    # fig = go.Figure()
+    # fig.add_trace(go.Scatter(y=array[0,:]))
+    # fig.add_trace(go.Scatter(x=np.argwhere(extrema[0,:]).flatten(), y=array[0,np.argwhere(extrema[0,:])].flatten(), mode='markers'))
+    # fig.show()
+
+    return extrema
 
 
 # Others 
