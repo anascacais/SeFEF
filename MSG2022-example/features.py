@@ -140,30 +140,46 @@ def _extract_hjorth_complexity(array):
     return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))
 
 
-def _eda_events(array, min_amplitude=0.1):
+def _eda_events(array, min_amplitude=0.01):
     """Internal method that identifies EDA events and extracts the corresponding onsets, peaks, and amplitudes."""
 
-    zeros = _find_extrema_indx(array, mode='min')  # get zeros
+    onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
+    peaks_indx = _find_extrema_indx(array, mode='max')
+
+    # sample = 1
+    # fig = go.Figure()
+    # fig.add_trace(go.Scatter(y=array[sample,:]))
+    # fig.add_trace(go.Scatter(x=np.argwhere(onsets_indx[sample,:]).flatten(), y=array[sample,np.argwhere(onsets_indx[sample,:])].flatten(), mode='markers'))
+    # fig.add_trace(go.Scatter(x=np.argwhere(peaks_indx[sample,:]).flatten(), y=array[sample,np.argwhere(peaks_indx[sample,:])].flatten(), mode='markers'))
+    # fig.show()
+
+    onsets_amps = array[onsets_indx]
+    peaks_amps = array[peaks_indx]
     
-    for z in range(len(zeros)):
-        if z == len(zeros) - 1:  # last zero
-            s = array[zeros[z]:]  # signal amplitude between events
-        else:
-            s = array[zeros[z]:zeros[z + 1]]  # signal amplitude between events
-            
-        pk = _find_extrema_indx(signal=s, mode='max')  # get pk between events
-        for p in pk:
-            if (s[p] - s[0]) > min_amplitude:  # only count events with minimum amplitude
-                peaks += [zeros[z] + p]
-                onsets += [zeros[z]]
-                amps += [s[p] - s[0]]
+    if len(onsets_amps) > len(peaks_amps):
+        all_amps = peaks_amps - onsets_amps[:len(peaks_amps)]
+
+        valid_event_indx = np.argwhere(onsets_indx)[np.argwhere(all_amps >= min_amplitude).flatten()]
+        onsets = (valid_event_indx[:, 0], valid_event_indx[:, 1])
+
+        valid_event_indx = np.argwhere(peaks_indx)[np.argwhere(all_amps >= min_amplitude).flatten()]
+        peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
+        
+        amps = all_amps[all_amps >= min_amplitude]
+        
+    elif len(onsets_amps) < len(peaks_amps):
+        all_amps = peaks_amps[len(peaks_amps)-len(onsets_amps):] - onsets_amps
+        raise NotImplementedError()
+    else:
+        all_amps = peaks_amps - onsets_amps
+        raise NotImplementedError()
     
-    # sanity check
-    if len(onsets) == 0:
-        raise ValueError("Could not find SCR pulses. Try to adjust min_amplitude.")
-    
-    # convert to array
-    onsets, peaks, amps = np.array(onsets), np.array(peaks), np.array(amps)
+    # sample = 0
+    # fig = go.Figure()
+    # fig.add_trace(go.Scatter(y=array[sample,:]))
+    # fig.add_trace(go.Scatter(x=onsets[1][onsets[0] == sample], y=array[sample,onsets[1][onsets[0] == sample]], mode='markers'))
+    # fig.add_trace(go.Scatter(x=peaks[1][peaks[0] == sample], y=array[sample,peaks[1][peaks[0] == sample]], mode='markers'))
+    # fig.show()
     
     return onsets, peaks, amps
     
@@ -191,10 +207,6 @@ def _find_extrema_indx(array=None, mode="both"):
     extrema = np.zeros_like(array, dtype=bool)
     extrema[:, 1:-1] = inflection_points[:, :]
 
-    # fig = go.Figure()
-    # fig.add_trace(go.Scatter(y=array[0,:]))
-    # fig.add_trace(go.Scatter(x=np.argwhere(extrema[0,:]).flatten(), y=array[0,np.argwhere(extrema[0,:])].flatten(), mode='markers'))
-    # fig.show()
 
     return extrema
 
