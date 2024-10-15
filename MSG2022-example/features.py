@@ -103,7 +103,7 @@ def _extract_SCR_amplitude(scr_events):
 
 def _extract_SCR_peakcount(scr_events):
     """Internal method that returns the number of peaks from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    return len(scr_events[2])
+    return np.array([len(s) for s in scr_events[2]])
 
 def _extract_mean_SCR_amplitude(scr_events):
     """Internal method that returns the mean SCR amplitude from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
@@ -141,18 +141,13 @@ def _extract_hjorth_complexity(array):
 
 
 def _eda_events(array, min_amplitude=0.01):
-    """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), and amplitudes (list where N is the number of EDA events)."""
+    """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), and amplitudes (list of N (#samples) arrays, each containing the amplitudes of the EDA events in the corresponding sample)."""
 
     onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
     peaks_indx = _find_extrema_indx(array, mode='max')
 
-    aux = np.zeros((len(onsets_indx),), dtype=bool)
-    aux[1:] = np.diff(onsets_indx[:,0]).astype('bool')
-    onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(aux).flatten())
-
-    aux = np.zeros((len(peaks_indx),), dtype=bool)
-    aux[1:] = np.diff(peaks_indx[:,0]).astype('bool')
-    peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(aux).flatten())
+    onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(np.concatenate(([False], np.diff(onsets_indx[:,0]).astype('bool')))).flatten())
+    peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(np.concatenate(([False], np.diff(peaks_indx[:,0]).astype('bool')))).flatten())
 
     # remove first peak if before onset and last onset if after peak
     for i in range(len(peaks_indx_by_sample)):
@@ -174,6 +169,10 @@ def _eda_events(array, min_amplitude=0.01):
     peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
     
     amps = np.split(all_amps[all_amps >= min_amplitude], np.argwhere(np.concatenate(([False], np.diff(valid_event_indx[:,0]).astype('bool')))).flatten())
+    samples_indx_no_events = list(set(range(len(array))) - set(valid_event_indx[:,0])) 
+
+    for s in samples_indx_no_events:
+        amps.insert(s, np.array([]))
 
     # sample = 1
     # fig = go.Figure()
