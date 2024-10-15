@@ -1,6 +1,7 @@
 # built-in
 import os
 import datetime
+import time
 
 # third-party
 import h5py
@@ -9,7 +10,7 @@ import pandas as pd
 import scipy
 
 # local 
-from features import extract_features
+from features import extract_features, extract_features_bp
 
 
 def get_sz_onset_df(labels_array, mpl=10):
@@ -135,34 +136,37 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
     -------
     None
     ''' 
+    real_time_vec, cpu_time_vec = [],[]
+    real_time_bp, cpu_time_bp = [],[]
 
-    with h5py.File(dataset_filepath, 'w') as hdf:
-        
-        for i, filepath in enumerate(files):
+    for i, filepath in enumerate(files):
 
-            try:
-                timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
-                data = extract_features(data, channels_names, features2extract, sampling_frequency)
+        try:
+            timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
 
-                # transform first dimension (samples) into list
-                data = np.split(data, data.shape[0], axis=0)
-                data = [np.squeeze(x, axis=0) for x in data]
-                timestamps_data = list(timestamps_data)
-
-            except ZeroDivisionError:
-                print(f'Not enough data on {filepath}\n')
-                continue
-
-            dataset = (timestamps_data, data)
+            t1 = time.perf_counter(), time.process_time()
+            _ = extract_features(data, channels_names, features2extract, sampling_frequency)
+            t2 = time.perf_counter(), time.process_time()
             
-            if 'data' not in hdf.keys():
-                create_dataset(hdf, dataset)
-            else:
-                update_dataset(hdf, dataset)
+            real_time_vec += [t2[0] - t1[0]]
+            cpu_time_vec += [t2[1] - t1[1]]
+
+            t1 = time.perf_counter(), time.process_time()
+            _ = extract_features_bp(data, channels_names, features2extract, sampling_frequency)
+            t2 = time.perf_counter(), time.process_time()
+            
+            real_time_bp += [t2[0] - t1[0]]
+            cpu_time_bp += [t2[1] - t1[1]]
+            
+        except ZeroDivisionError:
+            print(f'Not enough data on {filepath}\n')
+            continue
 
 
-            print(f"Processed {i+1}/{len(files)}", end="\r")
-
+        print(f"Processed {i+1}/{len(files)}", end="\r")
+    
+    print(f" Real time (vectorized): {np.mean(real_time_vec)*1000:.2f}+/-{np.std(real_time_vec)*1000:.2f} ms | (non-vectorized): {np.mean(real_time_bp)*1000:.2f}+/-{np.std(real_time_bp)*1000:.2f} ms")
+    print(f" CPU time (vectorized): {np.mean(cpu_time_vec)*1000:.2f}+/-{np.std(cpu_time_vec)*1000:.2f} ms | (non-vectorized): {np.mean(cpu_time_bp)*1000:.2f}+/-{np.std(cpu_time_bp)*1000:.2f} ms")
 
 
 def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  # 60s * 128Hz

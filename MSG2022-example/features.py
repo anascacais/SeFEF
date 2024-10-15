@@ -40,107 +40,149 @@ def extract_features(samples, channels_names, features2extract, sampling_frequen
     feat2function = {'mean': _extract_mean, 'power': _extract_power, 'std': _extract_std, 'kurtosis': _extract_kurtosis, 'skewness': _extract_skewness,
                     'mean_1stdiff': _extract_mean_1stdiff, 'mean_2nddiff': _extract_mean_2nddiff, 'shannon_entropy': _extract_shannon_entropy, 'SCR_amplitude': _extract_SCR_amplitude, 'SCR_peakcount': _extract_SCR_peakcount, 'mean_SCR_amplitude': _extract_mean_SCR_amplitude, 'mean_SCR_risetime': _extract_mean_SCR_risetime, 'sum_SCR_amplitudes': _extract_sum_SCR_amplitudes, 'sum_SCR_risetimes': _extract_sum_SCR_risetimes, 'SCR_AUC': _extract_SCR_AUC, 'hjorth_activity': _extract_hjorth_activity, 'hjorth_mobility': _extract_hjorth_mobility, 'hjorth_complexity': _extract_hjorth_complexity}
     
-    for channel in features2extract.keys():
-        channel_ind = channels_names.index(channel)
-
-        if any(['SCR' in ft for ft in features2extract[channel]]): 
-            scr_events = _eda_events(samples[:, :, channel_ind], sampling_frequency)
-
-        for feature_name in features2extract[channel]:
-
-            if feature_name not in feat2function.keys():
-                raise ValueError(f"{feature_name} is not a valid feature.")
+    try:
+        for channel in features2extract.keys():
+            channel_ind = channels_names.index(channel)
             
-            try:
+            if any(['SCR' in ft for ft in features2extract[channel]]): 
+                scr_events = _eda_events(samples[:, :, channel_ind], sampling_frequency)
+
+            for feature_name in features2extract[channel]:
+                if feature_name not in feat2function.keys():
+                    raise ValueError(f"{feature_name} is not a valid feature.")
+                
                 if 'SCR' in feature_name:
                     new_feature = feat2function[feature_name](scr_events)
                 else:
                     new_feature = feat2function[feature_name](samples[:, :, channel_ind])
-            except Exception as e:
-                print(e)
-            features += [new_feature]
+                features += [new_feature]
+        
+        return np.concatenate(features, axis=1)
+    
+    except RuntimeError:
+        return None
 
-    return np.concat(features, axis=1)
+
+def extract_features_bp(samples, channels_names, features2extract, sampling_frequency):
+
+    if samples is None:
+        return None
+    
+    features = []
+
+    feat2function = {'mean': _extract_mean, 'power': _extract_power, 'std': _extract_std, 'kurtosis': _extract_kurtosis, 'skewness': _extract_skewness,
+                    'mean_1stdiff': _extract_mean_1stdiff, 'mean_2nddiff': _extract_mean_2nddiff, 'shannon_entropy': _extract_shannon_entropy, 'SCR_amplitude': _extract_SCR_amplitude, 'SCR_peakcount': _extract_SCR_peakcount, 'mean_SCR_amplitude': _extract_mean_SCR_amplitude, 'mean_SCR_risetime': _extract_mean_SCR_risetime, 'sum_SCR_amplitudes': _extract_sum_SCR_amplitudes, 'sum_SCR_risetimes': _extract_sum_SCR_risetimes, 'SCR_AUC': _extract_SCR_AUC, 'hjorth_activity': _extract_hjorth_activity, 'hjorth_mobility': _extract_hjorth_mobility, 'hjorth_complexity': _extract_hjorth_complexity}
+    
+    try:
+        for channel in features2extract.keys():
+            channel_ind = channels_names.index(channel)
             
-
-
+            if any(['SCR' in ft for ft in features2extract[channel]]): 
+                scr_events = [[], []]
+                
+                for s in range(len(samples)):
+                    try:
+                        a, b = _eda_events(samples[s, :, channel_ind][np.newaxis, :], sampling_frequency)
+                        scr_events[0] = scr_events[0] + a
+                        scr_events[1] = scr_events[1] + b
+                    except RuntimeError:
+                        continue
+                
+            for feature_name in features2extract[channel]:
+                if feature_name not in feat2function.keys():
+                    raise ValueError(f"{feature_name} is not a valid feature.")
+                
+                if 'SCR' in feature_name:
+                    new_feature = feat2function[feature_name](scr_events)
+                else:
+                    for s in range(len(samples)):
+                        new_feature = feat2function[feature_name](samples[:, :, channel_ind])
+                features += [new_feature]
+        
+        return np.concatenate(features, axis=1)
+    
+    except Exception:
+        return None
 
 # Statistical features
 def _extract_mean(array):
-    """Internal method that computes the mean of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return np.mean(array, axis=1)
+    """Internal method that computes the mean of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return np.mean(array, axis=1)[:, np.newaxis]
 
 def _extract_power(array):
-    """Internal method that computes the average power of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return np.mean(array**2, axis=1)
+    """Internal method that computes the average power of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return np.mean(array**2, axis=1)[:, np.newaxis]
 
 def _extract_std(array):
-    """Internal method that computes the standard deviation of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return np.std(array, axis=1)
+    """Internal method that computes the standard deviation of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return np.std(array, axis=1)[:, np.newaxis]
 
 def _extract_kurtosis(array):
-    """Internal method that computes the kurtosis of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return scipy.stats.kurtosis(array)
+    """Internal method that computes the kurtosis of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return scipy.stats.kurtosis(array)[:, np.newaxis]
 
 def _extract_skewness(array):
-    """Internal method that computes the skewness of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return scipy.stats.skew(array)
+    """Internal method that computes the skewness of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return scipy.stats.skew(array)[:, np.newaxis]
 
 def _extract_mean_1stdiff(array):
-    """Internal method that computes the mean of the first difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return np.mean(np.diff(array, axis=1), axis=1)
+    """Internal method that computes the mean of the first difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return np.mean(np.diff(array, axis=1), axis=1)[:, np.newaxis]
 
 def _extract_mean_2nddiff(array):
-    """Internal method that computes the mean of the second difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return np.mean(np.diff(np.diff(array, axis=1), axis=1), axis=1)
+    """Internal method that computes the mean of the second difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return np.mean(np.diff(np.diff(array, axis=1), axis=1), axis=1)[:, np.newaxis]
 
 def _extract_shannon_entropy(array):
-    """Internal method that computes the Shannon entropy of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
-    return scipy.stats.entropy(array, axis=1)
+    """Internal method that computes the Shannon entropy of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    return scipy.stats.entropy(array, axis=1)[:, np.newaxis]
 
 
 # EDA event-based features
 def _extract_SCR_amplitude(scr_events):
-    """Internal method that computes the ???? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    """Internal method that computes the ???? from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
     raise NotImplementedError
 
 def _extract_SCR_peakcount(scr_events):
-    """Internal method that computes the number of peaks from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
-    return np.array([len(s) for s in scr_events[2]])
+    """Internal method that computes the number of peaks from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
+    return np.array([len(s) for s in scr_events[0]])[:, np.newaxis]
 
 def _extract_mean_SCR_amplitude(scr_events):
-    """Internal method that computes the mean SCR amplitude from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
-    return np.array([np.mean(s) for s in scr_events[2]])
+    """Internal method that computes the mean SCR amplitude from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
+    return np.array([np.mean(s) for s in scr_events[0]])[:, np.newaxis]
 
 def _extract_mean_SCR_risetime(scr_events):
-    """Internal method that computes the mean SCR rise time (in seconds) from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
-    return np.array([np.mean(s) for s in scr_events[3]])
+    """Internal method that computes the mean SCR rise time (in seconds) from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
+    return np.array([np.mean(s) for s in scr_events[1]])[:, np.newaxis]
 
 def _extract_sum_SCR_amplitudes(scr_events):
-    """Internal method that computes the sum of SCR amplitudes from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
-    return np.array([np.sum(s) for s in scr_events[2]])
+    """Internal method that computes the sum of SCR amplitudes from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
+    return np.array([np.sum(s) for s in scr_events[0]])[:, np.newaxis]
 
 def _extract_sum_SCR_risetimes(scr_events):
-    """Internal method that computes the sum of SCR rise times (in seconds) from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
-    return np.array([np.sum(s) for s in scr_events[3]])
+    """Internal method that computes the sum of SCR rise times (in seconds) from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
+    return np.array([np.sum(s) for s in scr_events[1]])[:, np.newaxis]
 
 def _extract_SCR_AUC(scr_events):
-    """Internal method that computes ??? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    """Internal method that computes ??? from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
     raise NotImplementedError
 
 
 # Hjorth features
 def _extract_hjorth_activity(array):
-    """Internal method that computes the Hjorth activity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, ). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
-    return np.sum((array - np.mean(array, axis=1)[:, np.newaxis])**2, axis=1)
+    """Internal method that computes the Hjorth activity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
+    return np.sum((array - np.mean(array, axis=1)[:, np.newaxis])**2, axis=1)[:, np.newaxis]
 
 def _extract_hjorth_mobility(array):
-    """Internal method that computes the Hjorth mobility of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, ). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
-    return np.sqrt(np.multiply(np.var(array, axis=1), np.var(np.diff(array, axis=1), axis=1)))
+    """Internal method that computes the Hjorth mobility of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
+    return np.sqrt(np.multiply(np.var(array, axis=1), np.var(np.diff(array, axis=1), axis=1)))[:, np.newaxis]
 
 def _extract_hjorth_complexity(array):
-    """Internal method that computes the Hjorth complexity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, ). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
-    return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))
+    """Internal method that computes the Hjorth complexity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
+    return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))[:, np.newaxis]
+
+
+
 
 
 def _eda_events(array, sampling_frequency, min_amplitude=0.01):
@@ -148,29 +190,39 @@ def _eda_events(array, sampling_frequency, min_amplitude=0.01):
 
     onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
     peaks_indx = _find_extrema_indx(array, mode='max')
+    
+    try:
+        onsets_indx, peaks_indx = _remove_unwanted_extrema(onsets_indx, peaks_indx)
+    except RuntimeError:
+        raise RuntimeError('No extrema found in any of the samples.')
 
-    onsets_indx, peaks_indx = _remove_unwanted_extrema(onsets_indx, peaks_indx)
+    if len(onsets_indx) != len(peaks_indx):
+        raise RuntimeError("Found incomplete EDA events")
 
     # get all amplitudes
     all_amps = array[(peaks_indx[:,0], peaks_indx[:,1])] - array[(onsets_indx[:,0], onsets_indx[:,1])]
 
     # get amplitudes that respect 'min_amplitude'
     valid_event_indx = np.argwhere(all_amps >= min_amplitude).flatten()
-    valid_event_sample_indx = onsets_indx[valid_event_indx][:,0]
-    sample_indx_split = np.argwhere(np.concatenate(([False], np.diff(valid_event_sample_indx).astype('bool')))).flatten()
+    
+    if len(valid_event_indx) != 0:
+        valid_event_sample_indx = onsets_indx[valid_event_indx][:,0]
+        sample_indx_split = np.argwhere(np.concatenate(([False], np.diff(valid_event_sample_indx).astype('bool')))).flatten()
 
-    # get onsets, peaks, amplitudes, and rise times
-    onsets = (onsets_indx[valid_event_indx][:, 0], onsets_indx[valid_event_indx][:, 1])
-    peaks = (peaks_indx[valid_event_indx][:, 0], peaks_indx[valid_event_indx][:, 1])
-    amps = np.split(all_amps[all_amps >= min_amplitude], sample_indx_split)
-    rise_times = np.split((peaks[1] - onsets[1]) / sampling_frequency, sample_indx_split)
+        # get onsets, peaks, amplitudes, and rise times
+        onsets = (onsets_indx[valid_event_indx][:, 0], onsets_indx[valid_event_indx][:, 1])
+        peaks = (peaks_indx[valid_event_indx][:, 0], peaks_indx[valid_event_indx][:, 1])
+        amps = np.split(all_amps[all_amps >= min_amplitude], sample_indx_split)
+        rise_times = np.split((peaks[1] - onsets[1]) / sampling_frequency, sample_indx_split)
 
-    samples_indx_no_events = list(set(range(len(array))) - set(valid_event_sample_indx)) 
-    for s in samples_indx_no_events:
-        amps.insert(s, np.array([]))
-        rise_times.insert(s, np.array([]))
+        samples_indx_no_events = list(set(range(len(array))) - set(valid_event_sample_indx)) 
+        for s in samples_indx_no_events:
+            amps.insert(s, np.array([]))
+            rise_times.insert(s, np.array([]))
+    else:
+        raise RuntimeError('No extrema found in any of the samples.')
 
-    return (onsets, peaks, amps, rise_times)
+    return (amps, rise_times)
     
 
 def _remove_unwanted_extrema(onsets_indx, peaks_indx):
@@ -179,6 +231,9 @@ def _remove_unwanted_extrema(onsets_indx, peaks_indx):
     onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(np.concatenate(([False], np.diff(onsets_indx[:,0]).astype('bool')))).flatten())
     peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(np.concatenate(([False], np.diff(peaks_indx[:,0]).astype('bool')))).flatten())
 
+    if (len(onsets_indx_by_sample[0]) == 0 or len(peaks_indx_by_sample[0]) == 0):
+        raise RuntimeError('No extrema found in any of the samples.')
+    
     # remove first peak if before onset and last onset if after peak
     for i in range(len(peaks_indx_by_sample)):
         peaks_indx_by_sample[i] = peaks_indx_by_sample[i][(peaks_indx_by_sample[i][0][1] < onsets_indx_by_sample[i][0][1]):]
