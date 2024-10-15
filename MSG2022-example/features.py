@@ -146,35 +146,35 @@ def _eda_events(array, min_amplitude=0.01):
     onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
     peaks_indx = _find_extrema_indx(array, mode='max')
 
+    aux = np.zeros((len(onsets_indx),), dtype=bool)
+    aux[1:] = np.diff(onsets_indx[:,0]).astype('bool')
+    onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(aux).flatten())
+
+    aux = np.zeros((len(peaks_indx),), dtype=bool)
+    aux[1:] = np.diff(peaks_indx[:,0]).astype('bool')
+    peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(aux).flatten())
+
+    # remove first peak if before onset and last onset if after peak
+    for i in range(len(peaks_indx_by_sample)):
+        peaks_indx_by_sample[i] = peaks_indx_by_sample[i][(peaks_indx_by_sample[i][0][1] < onsets_indx_by_sample[i][0][1]):]
+        onsets_indx_by_sample[i] = onsets_indx_by_sample[i][:(len(onsets_indx_by_sample[i]) - (onsets_indx_by_sample[i][-1][1] > peaks_indx_by_sample[i][-1][1]))]
+
+    onsets_indx = np.concatenate(onsets_indx_by_sample)
+    peaks_indx = np.concatenate(peaks_indx_by_sample)
+
+    onsets_amps = array[(onsets_indx[:,0], onsets_indx[:,1])]
+    peaks_amps = array[(peaks_indx[:,0], peaks_indx[:,1])]
+    all_amps = peaks_amps - onsets_amps[:len(peaks_amps)]
+
+    valid_event_indx = onsets_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
+    onsets = (valid_event_indx[:, 0], valid_event_indx[:, 1])
+
+    valid_event_indx = peaks_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
+    peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
+    
+    amps = all_amps[all_amps >= min_amplitude]
+
     # sample = 1
-    # fig = go.Figure()
-    # fig.add_trace(go.Scatter(y=array[sample,:]))
-    # fig.add_trace(go.Scatter(x=np.argwhere(onsets_indx[sample,:]).flatten(), y=array[sample,np.argwhere(onsets_indx[sample,:])].flatten(), mode='markers'))
-    # fig.add_trace(go.Scatter(x=np.argwhere(peaks_indx[sample,:]).flatten(), y=array[sample,np.argwhere(peaks_indx[sample,:])].flatten(), mode='markers'))
-    # fig.show()
-
-    onsets_amps = array[onsets_indx]
-    peaks_amps = array[peaks_indx]
-    
-    if len(onsets_amps) > len(peaks_amps):
-        all_amps = peaks_amps - onsets_amps[:len(peaks_amps)]
-
-        valid_event_indx = np.argwhere(onsets_indx)[np.argwhere(all_amps >= min_amplitude).flatten()]
-        onsets = (valid_event_indx[:, 0], valid_event_indx[:, 1])
-
-        valid_event_indx = np.argwhere(peaks_indx)[np.argwhere(all_amps >= min_amplitude).flatten()]
-        peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
-        
-        amps = all_amps[all_amps >= min_amplitude]
-        
-    elif len(onsets_amps) < len(peaks_amps):
-        all_amps = peaks_amps[len(peaks_amps)-len(onsets_amps):] - onsets_amps
-        raise NotImplementedError()
-    else:
-        all_amps = peaks_amps - onsets_amps
-        raise NotImplementedError()
-    
-    # sample = 0
     # fig = go.Figure()
     # fig.add_trace(go.Scatter(y=array[sample,:]))
     # fig.add_trace(go.Scatter(x=onsets[1][onsets[0] == sample], y=array[sample,onsets[1][onsets[0] == sample]], mode='markers'))
@@ -185,7 +185,7 @@ def _eda_events(array, min_amplitude=0.01):
     
 
 def _find_extrema_indx(array=None, mode="both"):
-    """Locate local extrema points in a signal, returning an array (dtype 'bool') with the same shape as 'array' and True where there are extrema. Adapted from BioSSPy. Based on Fermat's Theorem."""
+    """Locate local extrema points in a signal, returning an array of the indices of the extrema, shape (N, array.ndim), where N is the number of extrema. Adapted from BioSSPy. Based on Fermat's Theorem."""
 
     # check inputs
     if array is None:
@@ -207,8 +207,7 @@ def _find_extrema_indx(array=None, mode="both"):
     extrema = np.zeros_like(array, dtype=bool)
     extrema[:, 1:-1] = inflection_points[:, :]
 
-
-    return extrema
+    return np.argwhere(extrema)
 
 
 # Others 
