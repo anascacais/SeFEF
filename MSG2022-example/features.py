@@ -3,7 +3,7 @@
 import numpy as np
 import scipy
 
-def extract_features(samples, channels_names, features2extract):
+def extract_features(samples, channels_names, features2extract, sampling_frequency):
     ''' Extract features from "features2extract".  
     
     Parameters
@@ -19,7 +19,9 @@ def extract_features(samples, channels_names, features2extract):
             - Statistical: "mean", "power", "std", "kurtosis", "skewness", "mean_1stdiff", "mean_2nddiff", "entropy".
             - EDA event-based: "SCR_amplitude", "SCR_peakcount", "mean_SCR_amplitude", "mean_SCR_risetime", "sum_SCR_amplitudes", "sum_SCR_risetimes", "SCR_AUC".
             - Hjorth: "hjorth_activity", "hjorth_mobility", "hjorth_complexity".
-
+    sampling_frequency: int
+        Frequency at which the data is presented. 
+        
     Returns
     -------
     features: array-like, shape (#samples, #data points in sample)
@@ -42,7 +44,7 @@ def extract_features(samples, channels_names, features2extract):
         channel_ind = channels_names.index(channel)
 
         if any(['SCR' in ft for ft in features2extract[channel]]): 
-            scr_events = _eda_events(samples[:, :, channel_ind])
+            scr_events = _eda_events(samples[:, :, channel_ind], sampling_frequency)
 
         for feature_name in features2extract[channel]:
 
@@ -96,34 +98,35 @@ def _extract_shannon_entropy(array):
     """Internal method that computes the Shannon entropy of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, )."""
     return scipy.stats.entropy(array, axis=1)
 
+
 # EDA event-based features
 def _extract_SCR_amplitude(scr_events):
-    """Internal method that returns the ???? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    pass
+    """Internal method that computes the ???? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    raise NotImplementedError
 
 def _extract_SCR_peakcount(scr_events):
-    """Internal method that returns the number of peaks from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
+    """Internal method that computes the number of peaks from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
     return np.array([len(s) for s in scr_events[2]])
 
 def _extract_mean_SCR_amplitude(scr_events):
-    """Internal method that returns the mean SCR amplitude from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    pass
+    """Internal method that computes the mean SCR amplitude from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    return np.array([np.mean(s) for s in scr_events[2]])
 
 def _extract_mean_SCR_risetime(scr_events):
-    """Internal method that returns the mean SCR rise time from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    pass
+    """Internal method that computes the mean SCR rise time (in seconds) from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    return np.array([np.mean(s) for s in scr_events[3]])
 
 def _extract_sum_SCR_amplitudes(scr_events):
-    """Internal method that returns the sum of SCR amplitudes from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    pass
+    """Internal method that computes the sum of SCR amplitudes from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    return np.array([np.sum(s) for s in scr_events[2]])
 
 def _extract_sum_SCR_risetimes(scr_events):
-    """Internal method that returns the sum of SCR rise times from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    pass
+    """Internal method that computes the sum of SCR rise times (in seconds) from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    return np.array([np.sum(s) for s in scr_events[3]])
 
 def _extract_SCR_AUC(scr_events):
-    """Internal method that returns ??? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
-    pass
+    """Internal method that computes ??? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps', 'rise_times'), and returns an array with shape (#samples, )."""
+    raise NotImplementedError
 
 
 # Hjorth features
@@ -140,8 +143,8 @@ def _extract_hjorth_complexity(array):
     return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))
 
 
-def _eda_events(array, min_amplitude=0.01):
-    """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), and amplitudes (list of N (#samples) arrays, each containing the amplitudes of the EDA events in the corresponding sample)."""
+def _eda_events(array, sampling_frequency, min_amplitude=0.01):
+    """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), amplitudes and rise times (both lists of N (#samples) arrays, each containing the amplitudes of the EDA events in the corresponding sample)."""
 
     onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
     peaks_indx = _find_extrema_indx(array, mode='max')
@@ -168,11 +171,15 @@ def _eda_events(array, min_amplitude=0.01):
     valid_event_indx = peaks_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
     peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
     
-    amps = np.split(all_amps[all_amps >= min_amplitude], np.argwhere(np.concatenate(([False], np.diff(valid_event_indx[:,0]).astype('bool')))).flatten())
-    samples_indx_no_events = list(set(range(len(array))) - set(valid_event_indx[:,0])) 
+    sample_indx_split = np.argwhere(np.concatenate(([False], np.diff(valid_event_indx[:,0]).astype('bool')))).flatten()
 
+    amps = np.split(all_amps[all_amps >= min_amplitude], sample_indx_split)
+    rise_times = np.split((peaks[1] - onsets[1]) / sampling_frequency, sample_indx_split)
+
+    samples_indx_no_events = list(set(range(len(array))) - set(valid_event_indx[:,0])) 
     for s in samples_indx_no_events:
         amps.insert(s, np.array([]))
+        rise_times.insert(s, np.array([]))
 
     # sample = 1
     # fig = go.Figure()
@@ -181,7 +188,7 @@ def _eda_events(array, min_amplitude=0.01):
     # fig.add_trace(go.Scatter(x=peaks[1][peaks[0] == sample], y=array[sample,peaks[1][peaks[0] == sample]], mode='markers'))
     # fig.show()
     
-    return onsets, peaks, amps
+    return (onsets, peaks, amps, rise_times)
     
 
 def _find_extrema_indx(array=None, mode="both"):

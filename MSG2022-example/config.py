@@ -27,7 +27,7 @@ train_configurations = {
 #     'hr': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'shannon_entropy'],
 # }
 features2extract = {
-    'eda': ['SCR_amplitude', 'SCR_peakcount', 'mean_SCR_amplitude', 'mean_SCR_risetime', 'sum_SCR_amplitudes', 'sum_SCR_risetimes', 'SCR_AUC'],
+    'eda': ['SCR_peakcount', 'mean_SCR_amplitude', 'mean_SCR_risetime', 'sum_SCR_amplitudes', 'sum_SCR_risetimes'],
 }
 
 
