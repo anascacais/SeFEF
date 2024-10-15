@@ -149,6 +149,33 @@ def _eda_events(array, sampling_frequency, min_amplitude=0.01):
     onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
     peaks_indx = _find_extrema_indx(array, mode='max')
 
+    onsets_indx, peaks_indx = _remove_unwanted_extrema(onsets_indx, peaks_indx)
+
+    # get all amplitudes
+    all_amps = array[(peaks_indx[:,0], peaks_indx[:,1])] - array[(onsets_indx[:,0], onsets_indx[:,1])]
+
+    # get amplitudes that respect 'min_amplitude'
+    valid_event_indx = np.argwhere(all_amps >= min_amplitude).flatten()
+    valid_event_sample_indx = onsets_indx[valid_event_indx][:,0]
+    sample_indx_split = np.argwhere(np.concatenate(([False], np.diff(valid_event_sample_indx).astype('bool')))).flatten()
+
+    # get onsets, peaks, amplitudes, and rise times
+    onsets = (onsets_indx[valid_event_indx][:, 0], onsets_indx[valid_event_indx][:, 1])
+    peaks = (peaks_indx[valid_event_indx][:, 0], peaks_indx[valid_event_indx][:, 1])
+    amps = np.split(all_amps[all_amps >= min_amplitude], sample_indx_split)
+    rise_times = np.split((peaks[1] - onsets[1]) / sampling_frequency, sample_indx_split)
+
+    samples_indx_no_events = list(set(range(len(array))) - set(valid_event_sample_indx)) 
+    for s in samples_indx_no_events:
+        amps.insert(s, np.array([]))
+        rise_times.insert(s, np.array([]))
+
+    return (onsets, peaks, amps, rise_times)
+    
+
+def _remove_unwanted_extrema(onsets_indx, peaks_indx):
+    """Internal method that received a set of extrema indices (corresponding to an array with shape (#samples, #points in sample)) and removes the first peaks if they are not preceeded by an onset and removes the last onsets if they are not followed by a peak."""
+
     onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(np.concatenate(([False], np.diff(onsets_indx[:,0]).astype('bool')))).flatten())
     peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(np.concatenate(([False], np.diff(peaks_indx[:,0]).astype('bool')))).flatten())
 
@@ -160,36 +187,7 @@ def _eda_events(array, sampling_frequency, min_amplitude=0.01):
     onsets_indx = np.concatenate(onsets_indx_by_sample)
     peaks_indx = np.concatenate(peaks_indx_by_sample)
 
-    onsets_amps = array[(onsets_indx[:,0], onsets_indx[:,1])]
-    peaks_amps = array[(peaks_indx[:,0], peaks_indx[:,1])]
-
-    all_amps = peaks_amps - onsets_amps[:len(peaks_amps)]
-
-    valid_event_indx = onsets_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
-    onsets = (valid_event_indx[:, 0], valid_event_indx[:, 1])
-
-    valid_event_indx = peaks_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
-    peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
-    
-    sample_indx_split = np.argwhere(np.concatenate(([False], np.diff(valid_event_indx[:,0]).astype('bool')))).flatten()
-
-    amps = np.split(all_amps[all_amps >= min_amplitude], sample_indx_split)
-    rise_times = np.split((peaks[1] - onsets[1]) / sampling_frequency, sample_indx_split)
-
-    samples_indx_no_events = list(set(range(len(array))) - set(valid_event_indx[:,0])) 
-    for s in samples_indx_no_events:
-        amps.insert(s, np.array([]))
-        rise_times.insert(s, np.array([]))
-
-    # sample = 1
-    # fig = go.Figure()
-    # fig.add_trace(go.Scatter(y=array[sample,:]))
-    # fig.add_trace(go.Scatter(x=onsets[1][onsets[0] == sample], y=array[sample,onsets[1][onsets[0] == sample]], mode='markers'))
-    # fig.add_trace(go.Scatter(x=peaks[1][peaks[0] == sample], y=array[sample,peaks[1][peaks[0] == sample]], mode='markers'))
-    # fig.show()
-    
-    return (onsets, peaks, amps, rise_times)
-    
+    return onsets_indx, peaks_indx
 
 def _find_extrema_indx(array=None, mode="both"):
     """Locate local extrema points in a signal, returning an array of the indices of the extrema, shape (N, array.ndim), where N is the number of extrema. Adapted from BioSSPy. Based on Fermat's Theorem."""
