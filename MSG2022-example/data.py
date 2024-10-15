@@ -134,6 +134,11 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError : 
+        When "features2extract" contains feature names that do not exist.
     ''' 
 
     with h5py.File(dataset_filepath, 'w') as hdf:
@@ -216,9 +221,8 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
 def create_dataset(hdf, data):
     hdf.create_dataset('timestamps',
-                       data=data[0], maxshape=(None,), dtype='int64') # float64??
-    hdf.create_dataset(f'data', data=data[1], maxshape=(
-        None, None, None,), dtype='float32')
+                       data=data[0], maxshape=[None,], dtype='int64') # float64??
+    hdf.create_dataset(f'data', data=data[1], maxshape=[None]+[d for d in data[1][0].shape], dtype='float32')
 
 
 def update_dataset(hdf, data):

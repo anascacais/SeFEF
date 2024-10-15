@@ -29,6 +29,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     ## List all files for segmentation
     files = dataset.metadata.loc[np.min(tscv.split_ind_ts) : np.max(tscv.split_ind_ts)]['filepath']
     files = [os.path.join(data_folder_path, file) for file in files]
+    files = files[:100]
 
     ## Segment files
     #if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
