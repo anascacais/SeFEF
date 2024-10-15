@@ -98,31 +98,31 @@ def _extract_shannon_entropy(array):
 
 # EDA event-based features
 def _extract_SCR_amplitude(scr_events):
-    """Internal method that returns the ???? from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
+    """Internal method that returns the ???? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
     pass
 
 def _extract_SCR_peakcount(scr_events):
-    """Internal method that returns the number of peaks from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
-    pass
+    """Internal method that returns the number of peaks from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
+    return len(scr_events[2])
 
 def _extract_mean_SCR_amplitude(scr_events):
-    """Internal method that returns the mean SCR amplitude from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
+    """Internal method that returns the mean SCR amplitude from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
     pass
 
 def _extract_mean_SCR_risetime(scr_events):
-    """Internal method that returns the mean SCR rise time from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
+    """Internal method that returns the mean SCR rise time from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
     pass
 
 def _extract_sum_SCR_amplitudes(scr_events):
-    """Internal method that returns the sum of SCR amplitudes from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
+    """Internal method that returns the sum of SCR amplitudes from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
     pass
 
 def _extract_sum_SCR_risetimes(scr_events):
-    """Internal method that returns the sum of SCR rise times from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
+    """Internal method that returns the sum of SCR rise times from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
     pass
 
 def _extract_SCR_AUC(scr_events):
-    """Internal method that returns ??? from the tuple 'scr_events', that contains 'onsets', 'peaks', and 'amps'."""
+    """Internal method that returns ??? from the tuple 'scr_events' (which contains 'onsets', 'peaks', and 'amps'), and returns an array with shape (#samples, )."""
     pass
 
 
@@ -141,7 +141,7 @@ def _extract_hjorth_complexity(array):
 
 
 def _eda_events(array, min_amplitude=0.01):
-    """Internal method that identifies EDA events and extracts the corresponding onsets, peaks, and amplitudes."""
+    """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), and amplitudes (list where N is the number of EDA events)."""
 
     onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
     peaks_indx = _find_extrema_indx(array, mode='max')
@@ -164,6 +164,7 @@ def _eda_events(array, min_amplitude=0.01):
 
     onsets_amps = array[(onsets_indx[:,0], onsets_indx[:,1])]
     peaks_amps = array[(peaks_indx[:,0], peaks_indx[:,1])]
+
     all_amps = peaks_amps - onsets_amps[:len(peaks_amps)]
 
     valid_event_indx = onsets_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
@@ -172,7 +173,7 @@ def _eda_events(array, min_amplitude=0.01):
     valid_event_indx = peaks_indx[np.argwhere(all_amps >= min_amplitude).flatten()]
     peaks = (valid_event_indx[:, 0], valid_event_indx[:, 1])
     
-    amps = all_amps[all_amps >= min_amplitude]
+    amps = np.split(all_amps[all_amps >= min_amplitude], np.argwhere(np.concatenate(([False], np.diff(valid_event_indx[:,0]).astype('bool')))).flatten())
 
     # sample = 1
     # fig = go.Figure()
