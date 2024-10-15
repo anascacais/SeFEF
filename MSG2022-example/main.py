@@ -32,8 +32,10 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     files = files[:100]
 
     ## Segment files
-    #if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
-    create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
+    if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
+        if not os.path.exists(preprocessed_data_path):
+            os.makedirs(preprocessed_data_path)
+        create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
     
     # Labeling module
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r+') as h5dataset:
@@ -42,7 +44,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
 
     # Operationalizing CV
-    with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r+') as h5dataset:
+    with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r') as h5dataset:
         
         for ifold, (train_data, test_data) in enumerate(tscv.iterate(h5dataset)):
             print(f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
