@@ -102,10 +102,10 @@ def get_metadata(data_folder_path, patient_id):
     train_labels = train_labels_all.loc[train_labels_all['id'] == patient_id, :]
 
     ## Convert UTC datetime to Unix timestamp
-    train_labels['utc-datetime'] = pd.to_datetime(train_labels['utc-datetime'], format='UTC-%Y_%m_%d-%H_%M_%S', utc=True)
+    train_labels.loc[:,'utc-datetime'] = pd.to_datetime(train_labels['utc-datetime'], format='UTC-%Y_%m_%d-%H_%M_%S', utc=True, errors='coerce')
     files_metadata = pd.DataFrame({
         'filepath': train_labels.reset_index()['filepath'], 
-        'first_timestamp': train_labels.reset_index()['utc-datetime'].astype('int') // 10**9, # Convert to seconds
+        'first_timestamp': train_labels.reset_index()['utc-datetime'].astype('datetime64[ns, UTC]').astype('int') // 10**9 # Convert to seconds
     }) 
     files_metadata['total_duration'] = [10*60] * len(files_metadata) # 10min in seconds
 
@@ -149,8 +149,8 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
         for i, filepath in enumerate(files):
 
             try:
-                timestamps_data, data, channels_names, sampling_frequency = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
-                timestamps_data, data = preprocess(data, timestamps_data, channels_names, sampling_frequency)
+                timestamps_data, data, channels_names, new_sampling_frequency = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
+                timestamps_data, data = preprocess(data, timestamps_data, channels_names, new_sampling_frequency)
                 timestamps_data, data = quality_control(data, timestamps_data, channels_names, sampling_frequency) # TODO: NOT IMPLEMETED
                 timestamps_data, data = extract_features(data, timestamps_data, channels_names, features2extract, sampling_frequency)
 
@@ -159,8 +159,11 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
                 data = [np.squeeze(x, axis=0) for x in data]
                 timestamps_data = list(timestamps_data)
 
-            except ZeroDivisionError:
+            except RuntimeError:
                 print(f'Not enough data on {filepath}\n')
+                continue
+            except AttributeError:
+                print(f'No valid samples in {filepath}\n')
                 continue
 
             dataset = (timestamps_data, data)
@@ -198,29 +201,37 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
         Data array.
     channels_names: list<str>
         List of strings, corresponding to the names of the channels.
+
+    Raises
+    ------
+    RuntimeError :
+
     '''
-    try:
-        sample_length = sample_duration * fs
 
-        raw_df = pd.read_parquet(filepath, engine="pyarrow")
-        raw_np = np.array(np.split(raw_df.values, np.arange(
-            sample_length, len(raw_df), sample_length), axis=0))
-        
-        channels_names = raw_df.columns.to_list()[1:]
+    sample_length = sample_duration * fs
 
-        # removes sample if there is any NaN
-        raw_np_noNaN = raw_np[~np.isnan(raw_np).any(axis=(1, 2))]
+    raw_df = pd.read_parquet(filepath, engine="pyarrow")
+    raw_np = np.array(np.split(raw_df.values, np.arange(
+        sample_length, len(raw_df), sample_length), axis=0))
+    
+    channels_names = raw_df.columns.to_list()[1:]
 
-        raw_np_timestamps = raw_np_noNaN[:, 0, 0]
-        raw_np_data = raw_np_noNaN[:, :, 1:]
+    # removes sample if there is any NaN
+    raw_np_noNaN = raw_np[~np.isnan(raw_np).any(axis=(1, 2))]
+    
+    if len(raw_np_noNaN) == 0:
+        raise RuntimeError("No data in the file")
 
-        raw_np_data = scipy.signal.decimate(raw_np_data, decimate_factor, axis=1)
+    raw_np_timestamps = raw_np_noNaN[:, 0, 0]
+    raw_np_data = raw_np_noNaN[:, :, 1:]
 
-        return raw_np_timestamps, raw_np_data, channels_names, int(fs/decimate_factor)
+    raw_np_data = scipy.signal.decimate(raw_np_data, decimate_factor, axis=1)
 
-    except Exception as e:
-        print(e)
-        return None, None, None
+    return raw_np_timestamps, raw_np_data, channels_names, int(fs/decimate_factor)
+
+    # except Exception as e:
+    #     print(e)
+    #     return None, None, None, None
 
 
 def preprocess(samples, timestamps, channel_names, sampling_frequency):
@@ -292,7 +303,6 @@ def _eda_preprocess(array, sampling_frequency):
     filtered = scipy.signal.filtfilt(b, a, array, axis=1)
     sm_size = int(0.75 * sampling_frequency)
     filtered, _ = _smoother(filtered, kernel="boxzen", size=sm_size, mirror=True)
-
     return filtered
 
 def _hr_preprocess(array, sampling_frequency):

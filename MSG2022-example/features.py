@@ -33,7 +33,7 @@ def extract_features(samples, timestamps, channels_names, features2extract, samp
         Raised when a feature name in "features2extract" is not a valid feature. 
     ''' 
     if samples is None:
-        return None
+        return None, None
     
     features = []
 
@@ -64,8 +64,8 @@ def extract_features(samples, timestamps, channels_names, features2extract, samp
         return timestamps[valid_samples_indx], features[valid_samples_indx, :]
     
     except RuntimeError as e:
-        print(e)
-        return None
+        # catches RuntimeError('No extrema found in any of the samples.')
+        return None, None
 
 
 
@@ -83,11 +83,11 @@ def _extract_std(array):
     return np.std(array, axis=1)[:, np.newaxis]
 
 def _extract_kurtosis(array):
-    """Internal method that computes the kurtosis of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    """Internal method that computes the kurtosis of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1). Raises 'RuntimeWarning: Precision loss occurred in moment calculation due to catastrophic cancellation. This occurs when the data are nearly identical. Results may be unreliable.'."""
     return scipy.stats.kurtosis(array, axis=1)[:, np.newaxis]
 
 def _extract_skewness(array):
-    """Internal method that computes the skewness of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
+    """Internal method that computes the skewness of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1). Raises 'RuntimeWarning: Precision loss occurred in moment calculation due to catastrophic cancellation. This occurs when the data are nearly identical. Results may be unreliable.'."""
     return scipy.stats.skew(array, axis=1)[:, np.newaxis]
 
 def _extract_mean_1stdiff(array):
@@ -114,11 +114,11 @@ def _extract_SCR_peakcount(scr_events):
 
 def _extract_mean_SCR_amplitude(scr_events):
     """Internal method that computes the mean SCR amplitude from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
-    return np.array([np.mean(s) for s in scr_events[0]])[:, np.newaxis]
+    return np.array([np.mean(s) if len(s)!=0 else np.nan for s in scr_events[0]])[:, np.newaxis]
 
 def _extract_mean_SCR_risetime(scr_events):
     """Internal method that computes the mean SCR rise time (in seconds) from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
-    return np.array([np.mean(s) for s in scr_events[1]])[:, np.newaxis]
+    return np.array([np.mean(s) if len(s)!=0 else np.nan for s in scr_events[1]])[:, np.newaxis]
 
 def _extract_sum_SCR_amplitudes(scr_events):
     """Internal method that computes the sum of SCR amplitudes from the tuple 'scr_events' (which contains 'amps' and 'rise_times'), and returns an array with shape (#samples, 1)."""
@@ -152,11 +152,10 @@ def _extract_hjorth_complexity(array):
 
 def _eda_events(array, sampling_frequency, min_amplitude=0.01):
     """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), amplitudes and rise times (both lists of N (#samples) arrays, each containing the amplitudes of the EDA events in the corresponding sample)."""
-
-    onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
-    peaks_indx = _find_extrema_indx(array, mode='max')
     
-    try:
+    try: 
+        onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
+        peaks_indx = _find_extrema_indx(array, mode='max')
         onsets_indx, peaks_indx = _remove_unwanted_extrema(onsets_indx, peaks_indx)
     except RuntimeError:
         raise RuntimeError('No extrema found in any of the samples.')
@@ -212,10 +211,6 @@ def _remove_unwanted_extrema(onsets_indx, peaks_indx):
 def _find_extrema_indx(array=None, mode="both"):
     """Locate local extrema points in a signal, returning an array of the indices of the extrema, shape (N, array.ndim), where N is the number of extrema. Adapted from BioSSPy. Based on Fermat's Theorem."""
 
-    # check inputs
-    if array is None:
-        raise TypeError("Please specify an input signal.")
-
     if mode not in ["max", "min", "both"]:
         raise ValueError("Unknwon mode %r." % mode)
 
@@ -231,8 +226,12 @@ def _find_extrema_indx(array=None, mode="both"):
     
     extrema = np.zeros_like(array, dtype=bool)
     extrema[:, 1:-1] = inflection_points[:, :]
+    extrema = np.argwhere(extrema)
 
-    return np.argwhere(extrema)
+    if len(extrema) == 0:
+        raise RuntimeError('No extrema found in any of the samples.')
+
+    return extrema
 
 
 # Others 

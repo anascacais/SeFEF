@@ -29,13 +29,13 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     ## List all files for segmentation
     files = dataset.metadata.loc[np.min(tscv.split_ind_ts) : np.max(tscv.split_ind_ts)]['filepath']
     files = [os.path.join(data_folder_path, file) for file in files]
-    files = files[:100]
+    #files = files[:100]
 
-    ## Segment files
-    # if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
-    #     if not os.path.exists(preprocessed_data_path):
-    #         os.makedirs(preprocessed_data_path)
-    create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
+    # Segment files
+    if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
+        if not os.path.exists(preprocessed_data_path):
+            os.makedirs(preprocessed_data_path)
+        create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
     
     # Labeling module
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r+') as h5dataset:
