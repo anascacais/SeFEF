@@ -3,7 +3,7 @@
 import numpy as np
 import scipy
 
-def extract_features(samples, channels_names, features2extract, sampling_frequency):
+def extract_features(samples, timestamps, channels_names, features2extract, sampling_frequency):
     ''' Extract features from "features2extract".  
     
     Parameters
@@ -57,7 +57,11 @@ def extract_features(samples, channels_names, features2extract, sampling_frequen
                     new_feature = feat2function[feature_name](samples[:, :, channel_ind])
                 features += [new_feature]
         
-        return np.concatenate(features, axis=1)
+        features = np.concatenate(features, axis=1)
+        
+        # remove samples with nan
+        valid_samples_indx = np.all(~np.isnan(features), axis=1)
+        return timestamps[valid_samples_indx], features[valid_samples_indx, :]
     
     except RuntimeError as e:
         print(e)
@@ -80,11 +84,11 @@ def _extract_std(array):
 
 def _extract_kurtosis(array):
     """Internal method that computes the kurtosis of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
-    return scipy.stats.kurtosis(array)[:, np.newaxis]
+    return scipy.stats.kurtosis(array, axis=1)[:, np.newaxis]
 
 def _extract_skewness(array):
     """Internal method that computes the skewness of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
-    return scipy.stats.skew(array)[:, np.newaxis]
+    return scipy.stats.skew(array, axis=1)[:, np.newaxis]
 
 def _extract_mean_1stdiff(array):
     """Internal method that computes the mean of the first difference of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
@@ -140,7 +144,7 @@ def _extract_hjorth_mobility(array):
 
 def _extract_hjorth_complexity(array):
     """Internal method that computes the Hjorth complexity of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1). Implemented as described in Shukla et al. (2019), IEEE Transactions on Affective Computing."""
-    return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))[:, np.newaxis]
+    return np.multiply(_extract_hjorth_mobility(array), _extract_hjorth_mobility(np.diff(array, axis=1)))
 
 
 

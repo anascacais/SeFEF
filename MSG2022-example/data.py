@@ -151,7 +151,7 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
             try:
                 timestamps_data, data, channels_names, sampling_frequency = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
                 timestamps_data, data = preprocess(data, timestamps_data, channels_names, sampling_frequency)
-                data = extract_features(data, channels_names, features2extract, sampling_frequency)
+                timestamps_data, data = extract_features(data, timestamps_data, channels_names, features2extract, sampling_frequency)
 
                 # transform first dimension (samples) into list
                 data = np.split(data, data.shape[0], axis=0)
@@ -238,10 +238,10 @@ def preprocess(samples, timestamps, channel_names, sampling_frequency):
 
     Returns
     -------
-    samples: array-like, shape (#samples, #data points in sample, #channels)
-        Data array.
     timestamps: array-like, shape (#samples, )
         Contains the start timestamp of each sample.
+    samples: array-like, shape (#samples, #data points in sample, #channels)
+        Data array.
     ''' 
 
     if samples is None:
@@ -256,7 +256,10 @@ def preprocess(samples, timestamps, channel_names, sampling_frequency):
         preprocessed_data += [new_channel_data]
         
     preprocessed_data = np.stack(preprocessed_data, axis=-1)
-    return timestamps, preprocessed_data
+
+    # remove nan if existant
+    valid_samples_indx = np.all(~np.isnan(preprocessed_data), axis=(1,2))
+    return timestamps[valid_samples_indx], preprocessed_data[valid_samples_indx, :, :]
 
 
 
