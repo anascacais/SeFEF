@@ -8,10 +8,10 @@ def extract_features(samples, channels_names, features2extract, sampling_frequen
     
     Parameters
     ---------- 
-    raw_np_timestamps: array-like, shape (#samples, )
-        Contains the start timestamp of each sample.
-    raw_np_data: array-like, shape (#samples, #data points in sample, #channels)
+    samples: array-like, shape (#samples, #data points in sample, #channels)
         Data array.
+    timestamps: array-like, shape (#samples, )
+        Contains the start timestamp of each sample.
     channels_names: list<str>
         List of strings, corresponding to the names of the channels.
     features2extract: dict

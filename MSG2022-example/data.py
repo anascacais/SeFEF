@@ -7,6 +7,9 @@ import h5py
 import numpy as np
 import pandas as pd
 import scipy
+import biosppy as bp
+import scipy.signal
+import plotly.graph_objects as go
 
 # local 
 from features import extract_features
@@ -146,7 +149,8 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
         for i, filepath in enumerate(files):
 
             try:
-                timestamps_data, data, channels_names = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
+                timestamps_data, data, channels_names, sampling_frequency = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
+                timestamps_data, data = preprocess(data, timestamps_data, channels_names, sampling_frequency)
                 data = extract_features(data, channels_names, features2extract, sampling_frequency)
 
                 # transform first dimension (samples) into list
@@ -211,11 +215,201 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
         raw_np_data = scipy.signal.decimate(raw_np_data, decimate_factor, axis=1)
 
-        return raw_np_timestamps, raw_np_data, channels_names
+        return raw_np_timestamps, raw_np_data, channels_names, int(fs/decimate_factor)
 
     except Exception as e:
         print(e)
         return None, None, None
+
+
+def preprocess(samples, timestamps, channel_names, sampling_frequency):
+    ''' Preprocess samples according to the type of signal (given by "channel_names") and remove unusable samples.
+
+    Parameters
+        ---------- 
+        samples: array-like, shape (#samples, #data points in sample, #channels)
+            Data array.
+        timestamps: array-like, shape (#samples, )
+            Contains the start timestamp of each sample.
+        channels_names: list<str>
+            List of strings, corresponding to the names of the channels.
+        sampling_frequency: int
+            Frequency at which the data is presented along axis=1. 
+
+    Returns
+    -------
+    samples: array-like, shape (#samples, #data points in sample, #channels)
+        Data array.
+    timestamps: array-like, shape (#samples, )
+        Contains the start timestamp of each sample.
+    ''' 
+
+    if samples is None:
+        return None
+    
+    preprocessed_data = []
+
+    channel2function = {'acc_x': _acc_preprocess, 'acc_y': _acc_preprocess, 'acc_z': _acc_preprocess, 'acc_mag': _acc_preprocess, 'bvp': _bvp_preprocess, 'eda': _eda_preprocess, 'hr': _hr_preprocess, 'temp': _temp_preprocess}
+    
+    for channel_ind, channel_name in enumerate(channel_names):
+        new_channel_data = channel2function[channel_name](samples[:, :, channel_ind], sampling_frequency)
+        preprocessed_data += [new_channel_data]
+        
+    preprocessed_data = np.stack(preprocessed_data, axis=-1)
+    return timestamps, preprocessed_data
+
+
+
+def _acc_preprocess(array, sampling_frequency):
+    """Internal method that applies a preprocessing methodology to accelerometer (ACC) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
+    return array
+
+def _bvp_preprocess(array, sampling_frequency):
+    """Internal method that applies a preprocessing methodology to blood volume pulse (BVP) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
+    # get filter coefficients
+    b, a = scipy.signal.butter(
+        N=4, 
+        Wn=[1, 7],
+        fs=sampling_frequency,
+        btype='bandpass'
+    )
+    return scipy.signal.filtfilt(b, a, array, axis=1)
+    
+
+def _eda_preprocess(array, sampling_frequency):
+    """Internal method that applies a preprocessing methodology to electrodermal activity (EDA) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
+    # get filter coefficients
+    b, a = scipy.signal.butter(
+        N=4, 
+        Wn=5,
+        fs=sampling_frequency,
+        btype='lowpass'
+    )
+    filtered = scipy.signal.filtfilt(b, a, array, axis=1)
+    sm_size = int(0.75 * sampling_frequency)
+    filtered, _ = _smoother(filtered, kernel="boxzen", size=sm_size, mirror=True)
+
+    return filtered
+
+def _hr_preprocess(array, sampling_frequency):
+    """Internal method that applies a preprocessing methodology to heart rate (HR) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
+    return array
+
+def _temp_preprocess(array, sampling_frequency):
+    """Internal method that applies a preprocessing methodology to temperature (TEMP) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
+    return array
+
+
+def _smoother(signal=None, kernel="boxzen", size=10, mirror=True, **kwargs):
+    """Smooth a signal using an N-point moving average [MAvg]_ filter. Adapted from  BioSPPy.
+
+    This implementation uses the convolution of a filter kernel with the input
+    signal to compute the smoothed signal [Smit97]_.
+
+    Availabel kernels: median, boxzen, boxcar, triang, blackman, hamming, hann,
+    bartlett, flattop, parzen, bohman, blackmanharris, nuttall, barthann,
+    kaiser (needs beta), gaussian (needs std), general_gaussian (needs power,
+    width), slepian (needs width), chebwin (needs attenuation).
+
+    Parameters
+    ----------
+    signal : array
+        Signal to smooth.
+    kernel : str, array, optional
+        Type of kernel to use; if array, use directly as the kernel.
+    size : int, optional
+        Size of the kernel; ignored if kernel is an array.
+    mirror : bool, optional
+        If True, signal edges are extended to avoid boundary effects.
+    ``**kwargs`` : dict, optional
+        Additional keyword arguments are passed to the underlying
+        scipy.signal.windows function.
+
+    Returns
+    -------
+    signal : array
+        Smoothed signal.
+    params : dict
+        Smoother parameters.
+
+    Notes
+    -----
+    * When the kernel is 'median', mirror is ignored.
+
+    References
+    ----------
+    .. [MAvg] Wikipedia, "Moving Average",
+       http://en.wikipedia.org/wiki/Moving_average
+    .. [Smit97] S. W. Smith, "Moving Average Filters - Implementation by
+       Convolution", http://www.dspguide.com/ch15/1.htm, 1997
+
+    """
+
+    # check inputs
+    if signal is None:
+        raise TypeError("Please specify a signal to smooth.")
+
+    length = signal.shape[1]
+
+    if isinstance(kernel, str):
+        # check length
+        if size > length:
+            size = length - 1
+
+        if size < 1:
+            size = 1
+
+        if kernel == "boxzen":
+            # hybrid method
+            # 1st pass - boxcar kernel
+            aux, _ = _smoother(signal, kernel="boxcar", size=size, mirror=mirror)
+
+            # 2nd pass - parzen kernel
+            smoothed, _ = _smoother(aux, kernel="parzen", size=size, mirror=mirror)
+
+            params = {"kernel": kernel, "size": size, "mirror": mirror}
+
+            args = (smoothed, params)
+            names = ("signal", "params")
+
+            return bp.utils.ReturnTuple(args, names)
+
+        else:
+            win = bp.signals.tools._get_window(kernel, size, **kwargs)
+
+    elif isinstance(kernel, np.ndarray):
+        win = kernel
+        size = len(win)
+
+        # check length
+        if size > length:
+            raise ValueError("Kernel size is bigger than signal length.")
+
+        if size < 1:
+            raise ValueError("Kernel size is smaller than 1.")
+
+    else:
+        raise TypeError("Unknown kernel type.")
+
+    # convolve
+    w = win / win.sum()
+    if mirror:
+        aux = np.concatenate(
+            (signal[:,0][:, np.newaxis] * np.ones((len(signal), size)), signal, signal[:,-1][:, np.newaxis] * np.ones((len(signal), size))), axis=1
+            )
+        smoothed = scipy.signal.convolve(aux, w[np.newaxis,:], mode='same')
+        smoothed = smoothed[:,size:-size]
+    else:
+        smoothed = scipy.signal.convolve(aux, w[np.newaxis,:], mode='same')
+
+    # output
+    params = {"kernel": kernel, "size": size, "mirror": mirror}
+    params.update(kwargs)
+
+    args = (smoothed, params)
+    names = ("signal", "params")
+
+    return bp.utils.ReturnTuple(args, names)
 
 
 
