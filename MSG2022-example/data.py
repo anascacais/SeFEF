@@ -151,6 +151,7 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
             try:
                 timestamps_data, data, channels_names, sampling_frequency = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
                 timestamps_data, data = preprocess(data, timestamps_data, channels_names, sampling_frequency)
+                timestamps_data, data = quality_control(data, timestamps_data, channels_names, sampling_frequency) # TODO: NOT IMPLEMETED
                 timestamps_data, data = extract_features(data, timestamps_data, channels_names, features2extract, sampling_frequency)
 
                 # transform first dimension (samples) into list
@@ -223,7 +224,7 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
 
 def preprocess(samples, timestamps, channel_names, sampling_frequency):
-    ''' Preprocess samples according to the type of signal (given by "channel_names") and remove unusable samples.
+    ''' Preprocess samples according to the type of signal (given by "channel_names") and remove unusable samples. Removes samples whose time series contain NaNs.  
 
     Parameters
         ---------- 
@@ -413,6 +414,65 @@ def _smoother(signal=None, kernel="boxzen", size=10, mirror=True, **kwargs):
     names = ("signal", "params")
 
     return bp.utils.ReturnTuple(args, names)
+
+def quality_control(samples, timestamps, channel_names, sampling_frequency):
+    ''' Quality control procedure according to the type of signal. Samples whose channels (any) are considered inadequate, are removed.   
+
+    Parameters
+        ---------- 
+        samples: array-like, shape (#samples, #data points in sample, #channels)
+            Data array.
+        timestamps: array-like, shape (#samples, )
+            Contains the start timestamp of each sample.
+        channels_names: list<str>
+            List of strings, corresponding to the names of the channels.
+        sampling_frequency: int
+            Frequency at which the data is presented along axis=1. 
+
+    Returns
+    -------
+    timestamps: array-like, shape (#samples, )
+        Contains the start timestamp of each sample.
+    samples: array-like, shape (#samples, #data points in sample, #channels)
+        Data array.
+    ''' 
+    if samples is None:
+        return None
+    
+    quality = []
+
+    channel2function = {'acc_x': _acc_quality, 'acc_y': _acc_quality, 'acc_z': _acc_quality, 'acc_mag': _acc_quality, 'bvp': _bvp_quality, 'eda': _eda_quality, 'hr': _hr_quality, 'temp': _temp_quality}
+    
+    for channel_ind, channel_name in enumerate(channel_names):
+        new_channel_data = channel2function[channel_name](samples[:, :, channel_ind], sampling_frequency)
+        quality += [new_channel_data]
+        
+    quality = np.concatenate(quality, axis=1)
+
+    # remove nan if existant
+    valid_samples_indx = np.all(~np.isnan(quality), axis=1)
+    return timestamps[valid_samples_indx], samples[valid_samples_indx, :, :]
+
+
+def _acc_quality(array, sampling_frequency):
+    """Internal method that applies a quality control methodology to accelerometer (ACC) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1)."""
+    return np.ones((len(array), 1))
+
+def _bvp_quality(array, sampling_frequency):
+    """Internal method that applies a quality control methodology to blood volume pulse (BVP) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1)."""
+    return np.ones((len(array), 1))
+
+def _eda_quality(array, sampling_frequency):
+    """Internal method that applies a quality control methodology to elecrodermal activity (EDA) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1). Empirical thresholds based on Kleckner et al. (2018)."""
+    return np.ones((len(array), 1))
+
+def _hr_quality(array, sampling_frequency):
+    """Internal method that applies a quality control methodology to heart rate (HR) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1)."""
+    return np.ones((len(array), 1))
+
+def _temp_quality(array, sampling_frequency):
+    """Internal method that applies a quality control methodology to temperature (TEMP) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1). Empirical thresholds based on Kleckner et al. (2018)."""
+    return np.ones((len(array), 1))
 
 
 

@@ -4,7 +4,7 @@ import numpy as np
 import scipy
 
 def extract_features(samples, timestamps, channels_names, features2extract, sampling_frequency):
-    ''' Extract features from "features2extract".  
+    ''' Extract features from "features2extract". Removes samples whose features contain NaNs.  
     
     Parameters
     ---------- 
@@ -58,7 +58,7 @@ def extract_features(samples, timestamps, channels_names, features2extract, samp
                 features += [new_feature]
         
         features = np.concatenate(features, axis=1)
-        
+
         # remove samples with nan
         valid_samples_indx = np.all(~np.isnan(features), axis=1)
         return timestamps[valid_samples_indx], features[valid_samples_indx, :]
