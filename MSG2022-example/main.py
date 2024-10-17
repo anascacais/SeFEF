@@ -4,7 +4,7 @@ import os
 # third-party
 import numpy as np
 import h5py
-from sklearn import linear_model
+from sklearn import linear_model, preprocessing
 
 # SeFEF
 from sefef import evaluation, labeling
@@ -51,12 +51,17 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
                                 
             X_train, y_train, _ = train_data
             X_test, y_test, _ = test_data
+
+            # Apply scaling
+            scaler = preprocessing.StandardScaler().fit(X_train)
+            X_train = scaler.transform(X_train)
+            X_test = scaler.transform(X_test)
             
             # Logistic regression
-            model = linear_model.LogisticRegression()
+            model = linear_model.LogisticRegression(class_weight='balanced', max_iter=1000)
             model.fit(X_train, y_train)
 
-            y_pred = model.predict(X_test)
+            y_pred = model.predict_proba(X_test)
             pass
 
 if __name__ == '__main__':
