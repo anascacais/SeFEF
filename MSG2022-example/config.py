@@ -21,10 +21,10 @@ train_configurations = {
 }
 
 features2extract = {
-    'acc_mag': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'shannon_entropy'],
-    'bvp': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'shannon_entropy'],
-    'eda': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'shannon_entropy', 'SCR_peakcount', 'mean_SCR_amplitude', 'mean_SCR_risetime', 'sum_SCR_amplitudes', 'sum_SCR_risetimes', 'hjorth_activity', 'hjorth_mobility', 'hjorth_complexity'],
-    'hr': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'shannon_entropy'],
+    'acc_mag': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff'],
+    'bvp': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff'],
+    'eda': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff', 'SCR_peakcount', 'mean_SCR_amplitude', 'mean_SCR_risetime', 'sum_SCR_amplitudes', 'sum_SCR_risetimes', 'hjorth_activity', 'hjorth_mobility', 'hjorth_complexity'],
+    'hr': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff'],
 }
 
 

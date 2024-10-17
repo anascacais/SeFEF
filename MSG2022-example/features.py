@@ -100,7 +100,8 @@ def _extract_mean_2nddiff(array):
 
 def _extract_shannon_entropy(array):
     """Internal method that computes the Shannon entropy of the samples in an array with shape (#samples, #data points in sample), and returns an array with shape (#samples, 1)."""
-    return scipy.stats.entropy(array, axis=1)[:, np.newaxis]
+    # Not implemented because to use scipy.signal.entropy, we need to do a histogram and numpy doesnt allow for that without flatenning the array
+    return NotImplementedError
 
 
 # EDA event-based features
