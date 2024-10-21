@@ -7,7 +7,7 @@ import h5py
 from sklearn import linear_model, preprocessing
 
 # SeFEF
-from sefef import evaluation, labeling, postprocessing
+from sefef import evaluation, labeling, postprocessing, scoring
 
 # local 
 from data import get_metadata, create_hdf5_dataset
@@ -41,6 +41,8 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r+') as h5dataset:
         if 'annotations' not in h5dataset.keys():
             labeling.add_annotations(h5dataset, sz_onsets_ts=dataset.metadata[dataset.metadata['sz_onset']==1].index.to_numpy())
+        if 'sz_onsets' not in h5dataset.keys():
+            labeling.add_sz_onsets(h5dataset, sz_onsets_ts=dataset.metadata[dataset.metadata['sz_onset']==1].index.to_numpy())
 
 
     # Operationalizing CV
@@ -62,9 +64,11 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             model.fit(X_train, y_train)
 
             y_pred = model.predict_proba(X_test)
-            forecasts = postprocessing.Forecast(y_pred[:, 1], ts_test)
-            forecasts.postprocess(forecast_horizon=60*60, smooth_win=5*60, origin='clock-time')
-            print(model.score(X_test, y_test))
+            forecast = postprocessing.Forecast(y_pred[:, 1], ts_test)
+            forecasts, ts = forecast.postprocess(forecast_horizon=60*60, smooth_win=5*60, origin='clock-time')
+            
+            scorer = scoring.Scorer(metrics2compute=[], sz_onsets=[])
+            scorer.compute_metrics(forecasts, ts)
             pass
 
 if __name__ == '__main__':

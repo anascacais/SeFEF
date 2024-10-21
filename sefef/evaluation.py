@@ -285,6 +285,7 @@ class TimeSeriesCV:
             - "data": each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels) 
             - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
             - "annotations": contains the labels (0: interictal, 1: preictal) for each sample in the "data" dataset, with shape (#samples, ).
+            - "sz_onsets": contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). 
         
         Returns
         -------
