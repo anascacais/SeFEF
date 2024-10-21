@@ -7,7 +7,7 @@ import h5py
 from sklearn import linear_model, preprocessing
 
 # SeFEF
-from sefef import evaluation, labeling
+from sefef import evaluation, labeling, postprocessing
 
 # local 
 from data import get_metadata, create_hdf5_dataset
@@ -50,7 +50,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             print(f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
                                 
             X_train, y_train, _ = train_data
-            X_test, y_test, _ = test_data
+            X_test, y_test, ts_test = test_data
 
             # Apply scaling
             scaler = preprocessing.StandardScaler().fit(X_train)
@@ -62,6 +62,9 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             model.fit(X_train, y_train)
 
             y_pred = model.predict_proba(X_test)
+            forecasts = postprocessing.Forecast(y_pred[:, 1], ts_test)
+            forecasts.postprocess(forecast_horizon=60*60, smooth_win=5*60, origin='clock-time')
+            print(model.score(X_test, y_test))
             pass
 
 if __name__ == '__main__':
