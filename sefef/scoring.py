@@ -1,6 +1,8 @@
 # third-party
 import pandas as pd
 import numpy as np
+import sklearn
+import sklearn.metrics
 
 class Scorer:
     ''' Class description 
@@ -60,9 +62,11 @@ class Scorer:
         metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC': self._compute_AUC, 'resolution': self._compute_resolution, 'reliability': self._compute_BS, 'BS': self._compute_BS, 'skill': self._compute_BSS, 'BSS': self._compute_BSS}
                     
         for metric_name in self.metrics2compute:
-            if metric_name in ['Sen', 'FPR', 'TiW', 'AUC']:
+            if metric_name in ['Sen', 'FPR', 'TiW']:
                 tp, fp, fn = self._get_counts(forecasts, timestamps, threshold)
-                self.performance[metric_name] = metrics2function[metric_name](tp, fp, fn)
+                self.performance[metric_name] = metrics2function[metric_name](tp, fp, fn, forecasts)
+            elif metric_name == 'AUC':
+                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
             elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
                 proba_bins = self._get_probs_bins(forecasts)
                 self.performance[metric_name] = metrics2function[metric_name](proba_bins)
@@ -93,21 +97,30 @@ class Scorer:
 
         return tp, fp, fn
 
-    def _compute_Sen(self, tp, fp, fn):
-        '''Internal method that ...'''
-        pass
+    def _compute_Sen(self, tp, fp, fn, forecasts):
+        '''Internal method that computes sensitivity, providing a measure of the model's ability to correctly identify pre-ictal periods.'''
+        return tp / (tp + fn)
 
-    def _compute_FPR(self, tp, fp, fn):
-        '''Internal method that ...'''
-        pass
+    def _compute_FPR(self, tp, fp, fn, forecasts):
+        '''Internal method that computes the false positive rate, i.e. the proportion of time that the user incorrectly spends in alert.'''
+        return fp / len(forecasts)
 
-    def _compute_TiW(self, tp, fp, fn):
-        '''Internal method that ...'''
-        pass
+    def _compute_TiW(self, tp, fp, fn, forecasts):
+        '''Internal method that computes the time in warning, i.e. the proportion of time that the user spends in alert (i.e. in a high likelihood state, independently of the ”goodness” of the forecast).'''
+        return (tp + fp) / len(forecasts)
 
-    def _compute_AUC(self, tp, fp, fn):
-        '''Internal method that ...'''
-        pass
+    def _compute_AUC(self, forecasts, timestamps, threshold):
+        '''Internal method that computes the area under the Sen vs TiW curve, abstracting the need for threshold optimization. Computed as the numerical integration of Sen vs TiW using the trapezoidal rule.'''
+        # use unique forecasted values as thresholds
+        thresholds = np.unique(forecasts)
+        thresholds = thresholds[~np.isnan(thresholds)]
+
+        tp, fp, fn = np.vectorize(self._get_counts, excluded=['forecasts', 'timestamps_start_forecast'])(forecasts=forecasts, timestamps_start_forecast=timestamps, threshold=thresholds) 
+        
+        sen = np.vectorize(self._compute_Sen, excluded=['forecasts'])(tp=tp, fp=fp, fn=fn, forecasts=forecasts)
+        tiw = np.vectorize(self._compute_TiW, excluded=['forecasts'])(tp=tp, fp=fp, fn=fn, forecasts=forecasts)
+        
+        return sklearn.metrics.auc(tiw, sen)
 
     
 
