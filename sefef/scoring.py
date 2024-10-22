@@ -41,7 +41,7 @@ class Scorer:
         self.forecast_horizon = forecast_horizon
         self.performance = {}
 
-    def compute_metrics(self, forecasts, timestamps, threshold=0.5):
+    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='auto'):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
         
         Parameters
@@ -52,12 +52,16 @@ class Scorer:
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "forecasts") are valid. 
         threshold : float64, defaults to 0.5
             Probability value to apply as the high-likelihood threshold. 
-            
+        binning_method : str, defaults to "auto"
+            Method used to determine the number of bins. Currently only supports the default method, which corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of observations.
         Returns
         -------
         performance : dict 
             Dictionary where the keys are the metrics' names (as in "metrics2compute") and the value is the corresponding performance.
         ''' 
+
+        timestamps = timestamps[~np.isnan(forecasts)]
+        forecasts = forecasts[~np.isnan(forecasts)] # TODO: VERIFY THIS 
 
         metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC': self._compute_AUC, 'resolution': self._compute_resolution, 'reliability': self._compute_BS, 'BS': self._compute_BS, 'skill': self._compute_BSS, 'BSS': self._compute_BSS}
                     
@@ -68,8 +72,8 @@ class Scorer:
             elif metric_name == 'AUC':
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
             elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
-                proba_bins = self._get_probs_bins(forecasts)
-                self.performance[metric_name] = metrics2function[metric_name](proba_bins)
+                bin_edges = self._get_bin_edges(forecasts, binning_method)
+                self.performance[metric_name] = metrics2function[metric_name](forecasts, bin_edges)
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
         
@@ -113,7 +117,6 @@ class Scorer:
         '''Internal method that computes the area under the Sen vs TiW curve, abstracting the need for threshold optimization. Computed as the numerical integration of Sen vs TiW using the trapezoidal rule.'''
         # use unique forecasted values as thresholds
         thresholds = np.unique(forecasts)
-        thresholds = thresholds[~np.isnan(thresholds)]
 
         tp, fp, fn = np.vectorize(self._get_counts, excluded=['forecasts', 'timestamps_start_forecast'])(forecasts=forecasts, timestamps_start_forecast=timestamps, threshold=thresholds) 
         
@@ -125,18 +128,23 @@ class Scorer:
     
 
     # Probabilistic metrics
-    def _get_probs_bins(self, forecasts):
-        ''''''
+    def _get_bin_edges(self, forecasts, binning_method):
+        '''Internal method that computes the edges of probability bins so that each bin contains the same number of observations. The number of bins is determined by n^(1/3), as proposed in np.histogram_bin_edges.'''
+        if binning_method == 'auto':
+            num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
+        else:
+            raise NotImplementedError
+        percentiles = np.linspace(0, 100, num_bins + 1)
+        return np.percentile(np.sort(forecasts), percentiles)
+
+    def _compute_resolution(self, forecasts, bin_edges):
+        '''Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability.'''
         pass
 
-    def _compute_resolution(self, proba_bins):
+    def _compute_BS(self, forecasts, bin_edges):
         '''Internal method that ...'''
         pass
 
-    def _compute_BS(self, proba_bins):
-        '''Internal method that ...'''
-        pass
-
-    def _compute_BSS(self, proba_bins):
+    def _compute_BSS(self, forecasts, bin_edges):
         '''Internal method that ...'''
         pass
