@@ -47,12 +47,11 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
     # Operationalizing CV
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r') as h5dataset:
-        
         for ifold, (train_data, test_data) in enumerate(tscv.iterate(h5dataset)):
             print(f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
                                 
             X_train, y_train, _ = train_data
-            X_test, y_test, ts_test = test_data
+            X_test, sz_onsets_test, ts_test = test_data
 
             # Apply scaling
             scaler = preprocessing.StandardScaler().fit(X_train)
@@ -67,8 +66,8 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             forecast = postprocessing.Forecast(y_pred[:, 1], ts_test)
             forecasts, ts = forecast.postprocess(forecast_horizon=60*60, smooth_win=5*60, origin='clock-time')
             
-            scorer = scoring.Scorer(metrics2compute=[], sz_onsets=[])
-            scorer.compute_metrics(forecasts, ts)
+            scorer = scoring.Scorer(metrics2compute=['Sen', 'FPR', 'TiW', 'AUC', 'resolution', 'reliability', 'skill'], sz_onsets=sz_onsets_test)
+            performance = scorer.compute_metrics(forecasts, ts)
             pass
 
 if __name__ == '__main__':
