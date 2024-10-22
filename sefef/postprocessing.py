@@ -60,4 +60,4 @@ class Forecast:
         final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin]).max()
         final_proba.index = final_proba.index + pd.Timedelta(f'{forecast_horizon}s')
         
-        return final_proba.pred_proba.to_numpy(), final_proba.index.astype('int') // 10**9
+        return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('int') // 10**9).to_numpy()

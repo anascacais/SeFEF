@@ -1,4 +1,6 @@
-
+# third-party
+import pandas as pd
+import numpy as np
 
 class Scorer:
     ''' Class description 
@@ -11,6 +13,8 @@ class Scorer:
         - Probabilistic: "resolution", "reliability" or "BS" (i.e. Brier score), "skill" or "BSS" (i.e. Brier skill score).    
     sz_onsets : array-like, shape (#seizures, ), dtype "int64"
         Contains the Unix timestamps, in seconds, for the start of each seizure onset.
+    forecast_horizon : int
+        Forecast horizon in seconds, i.e. time in the future for which the forecasts are valid.  
     performance : dict
         Dictionary where the keys are the metrics' names (as in "metrics2compute") and the value is the corresponding performance. It is initialized as an empty dictionary and populated in "compute_metrics".
     
@@ -29,12 +33,13 @@ class Scorer:
         Raised when 'compute_metrics' is called before 'compute_metrics'.
     ''' 
 
-    def __init__(self, metrics2compute, sz_onsets, ):
+    def __init__(self, metrics2compute, sz_onsets, forecast_horizon):
         self.metrics2compute = metrics2compute
         self.sz_onsets = sz_onsets
+        self.forecast_horizon = forecast_horizon
         self.performance = {}
 
-    def compute_metrics(self, forecasts, timestamps):
+    def compute_metrics(self, forecasts, timestamps, threshold=0.5):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
         
         Parameters
@@ -43,7 +48,9 @@ class Scorer:
             Contains the predicted probabilites of seizure occurrence for the period with duration equal to the forecast horizon and starting at the timestamps in "timestamps".
         timestamps : array-like, shape (#forecasts, ), dtype "int64"
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "forecasts") are valid. 
-        
+        threshold : float64, defaults to 0.5
+            Probability value to apply as the high-likelihood threshold. 
+            
         Returns
         -------
         performance : dict 
@@ -54,7 +61,7 @@ class Scorer:
                     
         for metric_name in self.metrics2compute:
             if metric_name in ['Sen', 'FPR', 'TiW', 'AUC']:
-                tp, fp, fn = self._get_counts(forecasts, timestamps)
+                tp, fp, fn = self._get_counts(forecasts, timestamps, threshold)
                 self.performance[metric_name] = metrics2function[metric_name](tp, fp, fn)
             elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
                 proba_bins = self._get_probs_bins(forecasts)
@@ -65,24 +72,41 @@ class Scorer:
         return self.performance
 
     # Deterministic metrics
-    def _get_counts(self, forecasts, timestamps):
-        ''''''
-        pass
+    def _get_counts(self, forecasts, timestamps_start_forecast, threshold):
+        '''Internal method that computes counts of true positives (tp), false positives (fp), and false negatives (fn), according to the occurrence (or not) of a seizure event within the forecast horizon.'''
+        timestamps_end_forecast = timestamps_start_forecast + self.forecast_horizon - 1 
+        
+        tp_counts = np.any(
+            (self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :]) 
+            & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :])
+            & (forecasts >= threshold),
+            axis=1)
+
+        no_sz_forecasts = forecasts[~np.any(
+            (self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :]) 
+            & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]), 
+            axis=0)]
+        
+        tp = np.sum(tp_counts)
+        fn = len(self.sz_onsets) - tp
+        fp = np.sum(no_sz_forecasts >= threshold)
+
+        return tp, fp, fn
 
     def _compute_Sen(self, tp, fp, fn):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
 
     def _compute_FPR(self, tp, fp, fn):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
 
     def _compute_TiW(self, tp, fp, fn):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
 
     def _compute_AUC(self, tp, fp, fn):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
 
     
@@ -93,13 +117,13 @@ class Scorer:
         pass
 
     def _compute_resolution(self, proba_bins):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
 
     def _compute_BS(self, proba_bins):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
 
     def _compute_BSS(self, proba_bins):
-        ''' Internal method that ... ''' 
+        '''Internal method that ...'''
         pass
