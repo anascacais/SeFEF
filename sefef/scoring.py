@@ -19,7 +19,8 @@ class Scorer:
         Forecast horizon in seconds, i.e. time in the future for which the forecasts are valid.  
     performance : dict
         Dictionary where the keys are the metrics' names (as in "metrics2compute") and the value is the corresponding performance. It is initialized as an empty dictionary and populated in "compute_metrics".
-    
+    reference_method : str, defaults to "naive"
+        Method to compute the reference forecasts.
     Methods
     -------
     compute_metrics(forecasts, timestamps):
@@ -30,15 +31,16 @@ class Scorer:
     Raises
     -------
     ValueError :
-        Raised when a metric name in "metrics2compute" is not a valid metric. 
+        Raised when a metric name in "metrics2compute" is not a valid metric or when "reference_method" is not a valid method.
     AttributeError :
         Raised when 'compute_metrics' is called before 'compute_metrics'.
     ''' 
 
-    def __init__(self, metrics2compute, sz_onsets, forecast_horizon):
+    def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='naive'):
         self.metrics2compute = metrics2compute
         self.sz_onsets = sz_onsets
         self.forecast_horizon = forecast_horizon
+        self.reference_method = reference_method
         self.performance = {}
 
     def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='auto'):
@@ -63,7 +65,7 @@ class Scorer:
         timestamps = timestamps[~np.isnan(forecasts)]
         forecasts = forecasts[~np.isnan(forecasts)] # TODO: VERIFY THIS 
 
-        metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC': self._compute_AUC, 'resolution': self._compute_resolution, 'reliability': self._compute_BS, 'BS': self._compute_BS, 'skill': self._compute_BSS, 'BSS': self._compute_BSS}
+        metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC': self._compute_AUC, 'resolution': self._compute_resolution, 'reliability': self._compute_reliability, 'BS': self._compute_reliability, 'skill': self._compute_skill, 'BSS': self._compute_skill}
                     
         for metric_name in self.metrics2compute:
             if metric_name in ['Sen', 'FPR', 'TiW']:
@@ -72,8 +74,8 @@ class Scorer:
             elif metric_name == 'AUC':
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
             elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
-                bin_edges = self._get_bin_edges(forecasts, binning_method)
-                self.performance[metric_name] = metrics2function[metric_name](forecasts, bin_edges)
+                binned_data = self._get_bins_indx(forecasts, binning_method)
+                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, binned_data)
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
         
@@ -128,23 +130,56 @@ class Scorer:
     
 
     # Probabilistic metrics
-    def _get_bin_edges(self, forecasts, binning_method):
+    def _get_bins_indx(self, forecasts, binning_method):
         '''Internal method that computes the edges of probability bins so that each bin contains the same number of observations. The number of bins is determined by n^(1/3), as proposed in np.histogram_bin_edges.'''
         if binning_method == 'auto':
             num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
         else:
             raise NotImplementedError
-        percentiles = np.linspace(0, 100, num_bins + 1)
-        return np.percentile(np.sort(forecasts), percentiles)
+        percentile = np.linspace(0, 100, num_bins + 1)
+        bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  #remove edge corresponding to 0th percentile
+        binned_data = np.digitize(forecasts, bin_edges, right=True)
+        return binned_data
 
-    def _compute_resolution(self, forecasts, bin_edges):
-        '''Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability.'''
-        pass
+    def _compute_resolution(self, forecasts, timestamps, binned_data):
+        '''Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability. "y_avg": observed relative frequency of true events for all forecasts; "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
+        
+        y_avg = len(self.sz_onsets) / len(forecasts)
+        resolution = np.empty((len(np.unique(binned_data)),))
 
-    def _compute_BS(self, forecasts, bin_edges):
-        '''Internal method that ...'''
-        pass
+        for k in np.unique(binned_data):
+            binned_indx = np.where(binned_data==k)
+            events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
+            y_k_avg = events_in_bin / len(binned_indx)
+            resolution[k] = len(binned_indx) * ((y_k_avg - y_avg) ** 2)
+        
+        return np.sum(resolution) * (1/len(forecasts))
 
-    def _compute_BSS(self, forecasts, bin_edges):
-        '''Internal method that ...'''
-        pass
+    def _compute_reliability(self, forecasts, timestamps, binned_data):
+        '''Internal method that computes reliability, i.e. the agreement between forecasted and observed probabilities through the Brier score. "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
+        
+        reliability = np.empty((len(np.unique(binned_data)),))
+
+        for k in np.unique(binned_data):
+            binned_indx = np.where(binned_data==k)
+            events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
+            y_k_avg = events_in_bin / len(binned_indx)
+            reliability[k] = len(binned_indx) * ((np.mean(forecasts[binned_indx]) - y_k_avg) ** 2)
+
+        return np.sum(reliability) * (1/len(forecasts))
+
+    def _compute_skill(self, forecasts, timestamps, binned_data):
+        '''Internal method that computes the Brier skill score against a reference forecast.'''
+        skill = self._compute_reliability(forecasts, timestamps, binned_data)
+        ref_forecasts = self._get_reference_forecasts(timestamps)
+        ref_skill = self._compute_reliability(ref_forecasts, timestamps, binned_data)
+        return 1 - skill / ref_skill
+
+
+    def _get_reference_forecasts(self, timestamps):
+        '''Internal method that returns a reference forecast according to the specified method. "y_avg": observed relative frequency of true events for all forecasts.'''
+        if self.reference_method == 'naive':
+            y_avg = len(self.sz_onsets) / len(timestamps)
+            return y_avg * np.ones_like(timestamps)
+        else:
+            raise ValueError(f'{self.reference_method} is not a valid method to compute the reference forecasts.')
