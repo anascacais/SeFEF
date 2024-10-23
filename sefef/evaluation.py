@@ -309,7 +309,7 @@ class TimeSeriesCV:
             
             yield (
                 (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx], h5dataset['timestamps'][train_indx]),
-                (h5dataset['data'][test_indx], sz_onsets[test_sz_indx], h5dataset['timestamps'][test_indx])
+                (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx], h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
                 )
 
 

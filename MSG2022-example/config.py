@@ -27,6 +27,7 @@ features2extract = {
     'hr': ['mean', 'power', 'std', 'kurtosis', 'skewness', 'mean_1stdiff', 'mean_2nddiff'],
 }
 
+metrics2compute=['Sen', 'FPR', 'TiW', 'AUC', 'resolution', 'reliability', 'skill']
 
 
 sqi_channels = ['SQI EDA', 'SQI BVP'] # sqi channels to use

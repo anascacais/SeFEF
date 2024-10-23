@@ -11,7 +11,7 @@ from sefef import evaluation, labeling, postprocessing, scoring
 
 # local 
 from data import get_metadata, create_hdf5_dataset
-from config import patient_id, data_folder_path, sampling_frequency, features2extract
+from config import patient_id, data_folder_path, sampling_frequency, features2extract, metrics2compute
 
 
 def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_frequency=sampling_frequency):
@@ -47,11 +47,13 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
     # Operationalizing CV
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r') as h5dataset:
+        
+        performance = {m:[] for m in metrics2compute}
         for ifold, (train_data, test_data) in enumerate(tscv.iterate(h5dataset)):
             print(f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
                                 
             X_train, y_train, _ = train_data
-            X_test, sz_onsets_test, ts_test = test_data
+            X_test, y_test, ts_test, sz_onsets_test = test_data
 
             # Apply scaling
             scaler = preprocessing.StandardScaler().fit(X_train)
@@ -64,11 +66,16 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
             y_pred = model.predict_proba(X_test)
             forecast = postprocessing.Forecast(y_pred[:, 1], ts_test)
+            #forecast = postprocessing.Forecast(y_test, ts_test)
             forecasts, ts = forecast.postprocess(forecast_horizon=60*60, smooth_win=5*60, origin='clock-time')
             
-            scorer = scoring.Scorer(metrics2compute=['Sen', 'FPR', 'TiW', 'AUC', 'resolution', 'reliability', 'skill'], sz_onsets=sz_onsets_test, forecast_horizon=60*60, reference_method='naive')
-            performance = scorer.compute_metrics(forecasts, ts)
-            pass
+            scorer = scoring.Scorer(metrics2compute=metrics2compute, sz_onsets=sz_onsets_test, forecast_horizon=60*60, reference_method='naive')
+            fold_performance = scorer.compute_metrics(forecasts, ts, draw_diagram=True)
+            
+            for metric in fold_performance.keys():
+                performance[metric].append(fold_performance[metric])
+        
+        pass
 
 if __name__ == '__main__':
     main()

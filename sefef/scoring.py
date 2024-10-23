@@ -3,7 +3,11 @@ import pandas as pd
 import numpy as np
 import sklearn
 import sklearn.metrics
+import plotly.graph_objects as go
 
+
+# local
+from sefef.visualization import COLOR_PALETTE
 class Scorer:
     ''' Class description 
     
@@ -43,7 +47,7 @@ class Scorer:
         self.reference_method = reference_method
         self.performance = {}
 
-    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='auto'):
+    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='auto', draw_diagram=True):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
         
         Parameters
@@ -56,6 +60,8 @@ class Scorer:
             Probability value to apply as the high-likelihood threshold. 
         binning_method : str, defaults to "auto"
             Method used to determine the number of bins. Currently only supports the default method, which corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of observations.
+        draw_diagram : bool, defaults to True
+            Whether to draw the reliability diagram after computing all required metrics. 
         Returns
         -------
         performance : dict 
@@ -74,10 +80,13 @@ class Scorer:
             elif metric_name == 'AUC':
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
             elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
-                binned_data = self._get_bins_indx(forecasts, binning_method)
-                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, binned_data)
+                bin_edges = self._get_bins_indx(forecasts, binning_method)
+                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, bin_edges)
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
+        
+        if draw_diagram:
+            self._reliability_diagram(forecasts, timestamps, bin_edges)
         
         return self.performance
 
@@ -138,12 +147,12 @@ class Scorer:
             raise NotImplementedError
         percentile = np.linspace(0, 100, num_bins + 1)
         bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  #remove edge corresponding to 0th percentile
-        binned_data = np.digitize(forecasts, bin_edges, right=True)
-        return binned_data
+        return bin_edges
 
-    def _compute_resolution(self, forecasts, timestamps, binned_data):
+    def _compute_resolution(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability. "y_avg": observed relative frequency of true events for all forecasts; "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
         
+        binned_data = np.digitize(forecasts, bin_edges, right=True)
         y_avg = len(self.sz_onsets) / len(forecasts)
         resolution = np.empty((len(np.unique(binned_data)),))
 
@@ -155,9 +164,10 @@ class Scorer:
         
         return np.sum(resolution) * (1/len(forecasts))
 
-    def _compute_reliability(self, forecasts, timestamps, binned_data):
+    def _compute_reliability(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes reliability, i.e. the agreement between forecasted and observed probabilities through the Brier score. "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
         
+        binned_data = np.digitize(forecasts, bin_edges, right=True)
         reliability = np.empty((len(np.unique(binned_data)),))
 
         for k in np.unique(binned_data):
@@ -183,3 +193,82 @@ class Scorer:
             return y_avg * np.ones_like(timestamps)
         else:
             raise ValueError(f'{self.reference_method} is not a valid method to compute the reference forecasts.')
+        
+    
+    def _reliability_diagram(self, forecasts, timestamps, bin_edges):
+        '''  ''' 
+        fig = go.Figure()
+
+        y_avg = len(self.sz_onsets) / len(forecasts)
+        binned_data = np.digitize(forecasts, bin_edges, right=True)
+        bin_edges = np.insert(bin_edges, 0, 0.)
+        diagram_data = pd.DataFrame(columns=['observed_proba', 'forecasted_proba'], index=(bin_edges[:-1] + bin_edges[1:]) / 2)
+
+        for k in range(len(diagram_data)):
+            binned_indx = np.where(binned_data==k)
+            events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
+            y_k_avg = events_in_bin / len(binned_indx[0])
+            diagram_data.iloc[k,:] = [y_k_avg, np.mean(forecasts[binned_indx])]
+        
+        fig.add_trace(go.Scatter(
+            x=diagram_data.loc[:,'forecasted_proba'], 
+            y=diagram_data.loc[:,'observed_proba'],
+            mode='lines',
+            line=dict(width=3, color=COLOR_PALETTE[1]),
+            name='Reliability curve'
+            ))
+
+        fig.add_trace(go.Scatter(
+            x=diagram_data.loc[:,'forecasted_proba'], 
+            y=diagram_data.loc[:,'observed_proba'],
+            mode='markers',
+            marker=dict(size=10, color=COLOR_PALETTE[1]),
+            name='Bin average'
+            ))
+
+
+        fig.add_trace(go.Scatter(
+            x=[0, 1], 
+            y=[0, 1],
+            line=dict(width=3, color=COLOR_PALETTE[0], dash='dash'),
+            #showlegend=False,
+            mode='lines',
+            name='Perfect reliability'
+            ))
+        
+        fig.add_trace(go.Scatter(
+            x=[0, 1], 
+            y=[y_avg, y_avg],
+            line=dict(width=3, color='lightgrey', dash='dash'),
+            #showlegend=False,
+            mode='lines',
+            name='No resolution'
+            ))
+        
+        # Config plot layout
+        fig.update_yaxes(
+            title = 'observed probability',
+            tickfont = dict(size=12),
+            showline=True, linewidth=2, linecolor = COLOR_PALETTE[2],
+            showgrid = False,
+            range=[0, 1]
+        )
+        fig.update_xaxes(
+            title = 'forecasted probability',
+            tickfont = dict(size=12),
+            showline=True, linewidth=2, linecolor = COLOR_PALETTE[2],
+            showgrid = False,
+            tickmode = 'array',
+            tickvals = bin_edges,
+            tickformat = '.3',
+            ticks="inside", tickwidth=2, tickcolor=COLOR_PALETTE[2], ticklen=10,
+            range = [0, 1],
+        )
+        fig.update_layout(
+            title = 'Reliability diagram',
+            showlegend = True,
+            plot_bgcolor = 'white',
+            )
+        fig.show()
+        pass
+
