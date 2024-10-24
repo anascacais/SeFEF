@@ -196,13 +196,18 @@ def _remove_unwanted_extrema(onsets_indx, peaks_indx):
     onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(np.concatenate(([False], np.diff(onsets_indx[:,0]).astype('bool')))).flatten())
     peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(np.concatenate(([False], np.diff(peaks_indx[:,0]).astype('bool')))).flatten())
 
-    if (len(onsets_indx_by_sample[0]) == 0 or len(peaks_indx_by_sample[0]) == 0):
+    # if (len(onsets_indx_by_sample[0]) == 0 or len(peaks_indx_by_sample[0]) == 0):
+    #     raise RuntimeError('No extrema found in any of the samples.')
+    if len(onsets_indx[:,0]) == 0 or len(peaks_indx[:,0]) == 0:
         raise RuntimeError('No extrema found in any of the samples.')
     
     # remove first peak if before onset and last onset if after peak
     for i in range(len(peaks_indx_by_sample)):
-        peaks_indx_by_sample[i] = peaks_indx_by_sample[i][(peaks_indx_by_sample[i][0][1] < onsets_indx_by_sample[i][0][1]):]
-        onsets_indx_by_sample[i] = onsets_indx_by_sample[i][:(len(onsets_indx_by_sample[i]) - (onsets_indx_by_sample[i][-1][1] > peaks_indx_by_sample[i][-1][1]))]
+        remove_first_peak = peaks_indx_by_sample[i][0][1] < onsets_indx_by_sample[i][0][1]
+        remove_last_onset = onsets_indx_by_sample[i][-1][1] > peaks_indx_by_sample[i][-1][1]
+        peaks_indx_by_sample[i] = peaks_indx_by_sample[i][remove_first_peak:]
+        onsets_indx_by_sample[i] = onsets_indx_by_sample[i][:(len(onsets_indx_by_sample[i]) - remove_last_onset)]
+
 
     onsets_indx = np.concatenate(onsets_indx_by_sample)
     peaks_indx = np.concatenate(peaks_indx_by_sample)
