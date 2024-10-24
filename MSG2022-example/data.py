@@ -10,6 +10,8 @@ import scipy
 import biosppy as bp
 import scipy.signal
 import plotly.graph_objects as go
+from pyarrow.lib import ArrowInvalid 
+
 
 # local 
 from features import extract_features
@@ -145,6 +147,8 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
     ''' 
 
     with h5py.File(dataset_filepath, 'w') as hdf:
+
+        lost_files = 0
         
         for i, filepath in enumerate(files):
 
@@ -160,10 +164,20 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
                 timestamps_data = list(timestamps_data)
 
             except RuntimeError:
-                print(f'Not enough data on {filepath}\n')
+                print(f'Not enough data on {filepath}')
+                lost_files += 1
+                continue
+            except FileNotFoundError:
+                print(f'File {filepath} not found')
+                lost_files += 1
                 continue
             except AttributeError:
-                print(f'No valid samples in {filepath}\n')
+                print(f'No valid samples in {filepath}')
+                lost_files += 1
+                continue
+            except ValueError:
+                lost_files += 1
+                print(f'File {filepath} could not be open.')
                 continue
 
             dataset = (timestamps_data, data)
@@ -176,6 +190,7 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
 
             print(f"Processed {i+1}/{len(files)}", end="\r")
 
+        print(f'\n{lost_files} out of {len(files)} were ignored.')
 
 
 def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  # 60s * 128Hz
@@ -210,7 +225,13 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
 
     sample_length = sample_duration * fs
 
-    raw_df = pd.read_parquet(filepath, engine="pyarrow")
+    try:
+        raw_df = pd.read_parquet(filepath, engine="pyarrow")
+    except FileNotFoundError:
+        raise FileNotFoundError
+    except: 
+        raise ValueError
+    
     raw_np = np.array(np.split(raw_df.values, np.arange(
         sample_length, len(raw_df), sample_length), axis=0))
     

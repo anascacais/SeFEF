@@ -47,7 +47,7 @@ class Scorer:
         self.reference_method = reference_method
         self.performance = {}
 
-    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='auto', draw_diagram=True):
+    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_forecast_number', num_bins=None, draw_diagram=True):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
         
         Parameters
@@ -58,8 +58,12 @@ class Scorer:
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "forecasts") are valid. 
         threshold : float64, defaults to 0.5
             Probability value to apply as the high-likelihood threshold. 
-        binning_method : str, defaults to "auto"
-            Method used to determine the number of bins. Currently only supports the default method, which corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of observations.
+        binning_method : str, defaults to "equal_forecast_number"
+            Method used to determine the number of bins used to compute probabilistic metrics. Available methods are: 
+                - "equal_width": number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.
+                - "equal_frequency": number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.
+        num_bins : int64, defaults to None
+            Number of bins used to compute probabilistic metrics. If None, it is calculated as np.ceil(#forecasts^(1/3)), otherwise "num_bins" is used as the number of bins.
         draw_diagram : bool, defaults to True
             Whether to draw the reliability diagram after computing all required metrics. 
         Returns
@@ -80,13 +84,13 @@ class Scorer:
             elif metric_name == 'AUC':
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
             elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
-                bin_edges = self._get_bins_indx(forecasts, binning_method)
+                bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, bin_edges)
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
         
         if draw_diagram:
-            self._reliability_diagram(forecasts, timestamps, bin_edges)
+            self._reliability_diagram(forecasts, timestamps, bin_edges, binning_method)
         
         return self.performance
 
@@ -139,14 +143,20 @@ class Scorer:
     
 
     # Probabilistic metrics
-    def _get_bins_indx(self, forecasts, binning_method):
-        '''Internal method that computes the edges of probability bins so that each bin contains the same number of observations. The number of bins is determined by n^(1/3), as proposed in np.histogram_bin_edges.'''
-        if binning_method == 'auto':
+    def _get_bins_indx(self, forecasts, binning_method, num_bins):
+        '''Internal method that computes the edges of probability bins so that each bin contains the same number of observations. If not provided, the number of bins is determined by n^(1/3), as proposed in np.histogram_bin_edges.'''
+        
+        if num_bins is None:
             num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
+
+        if binning_method == 'equal_width':
+            bin_edges = np.linspace(0, 1, num_bins + 1)
+        elif binning_method == 'equal_frequency':
+            percentile = np.linspace(0, 100, num_bins + 1)
+            bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  #remove edge corresponding to 0th percentile
         else:
-            raise NotImplementedError
-        percentile = np.linspace(0, 100, num_bins + 1)
-        bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  #remove edge corresponding to 0th percentile
+            raise ValueError(f'{binning_method} is not a valid binning method')
+        
         return bin_edges
 
     def _compute_resolution(self, forecasts, timestamps, bin_edges):
@@ -195,8 +205,8 @@ class Scorer:
             raise ValueError(f'{self.reference_method} is not a valid method to compute the reference forecasts.')
         
     
-    def _reliability_diagram(self, forecasts, timestamps, bin_edges):
-        '''  ''' 
+    def _reliability_diagram(self, forecasts, timestamps, bin_edges, binning_method):
+        '''Internal method that plots the reliability diagram (forecasted_proba vs observed_proba), along with the no-resolution and perfect-reliability lines.''' 
         fig = go.Figure()
 
         y_avg = len(self.sz_onsets) / len(forecasts)
@@ -265,7 +275,7 @@ class Scorer:
             range = [0, 1],
         )
         fig.update_layout(
-            title = 'Reliability diagram',
+            title = f'Reliability diagram (binning method: {binning_method})',
             showlegend = True,
             plot_bgcolor = 'white',
             )
