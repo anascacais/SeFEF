@@ -101,6 +101,9 @@ def get_metadata(data_folder_path, patient_id):
     train_labels_all[['id', 'session', 'utc-datetime']] = train_labels_all['filepath'].str.split('/', expand=True)
     train_labels_all['utc-datetime'] = train_labels_all['utc-datetime'].str.strip('.parquet')
 
+    if patient_id not in train_labels_all['id'].unique():
+        raise ValueError(f'ID {patient_id} does not exist in dataset')
+    
     train_labels = train_labels_all.loc[train_labels_all['id'] == patient_id, :]
 
     ## Convert UTC datetime to Unix timestamp

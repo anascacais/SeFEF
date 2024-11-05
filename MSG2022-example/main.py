@@ -72,7 +72,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             
             # SeFEF - scoring module
             scorer = scoring.Scorer(metrics2compute=metrics2compute, sz_onsets=sz_onsets_test, forecast_horizon=60*60, reference_method='naive')
-            fold_performance = scorer.compute_metrics(forecasts, ts, draw_diagram=True, binning_method='equal_forecast_number')
+            fold_performance = scorer.compute_metrics(forecasts, ts, draw_diagram=True)
             
             for metric in fold_performance.keys():
                 performance[metric].append(fold_performance[metric])

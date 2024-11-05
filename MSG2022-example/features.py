@@ -149,8 +149,6 @@ def _extract_hjorth_complexity(array):
 
 
 
-
-
 def _eda_events(array, sampling_frequency, min_amplitude=0.01):
     """Internal method that identifies EDA events and extracts the corresponding onsets (tuple that indexes the onsets through 'array[onsets]'), peaks (tuple that indexes the peaks through 'array[peaks]'), amplitudes and rise times (both lists of N (#samples) arrays, each containing the amplitudes of the EDA events in the corresponding sample)."""
     
@@ -158,6 +156,14 @@ def _eda_events(array, sampling_frequency, min_amplitude=0.01):
         onsets_indx = _find_extrema_indx(array, mode='min')  # get zeros
         peaks_indx = _find_extrema_indx(array, mode='max')
         onsets_indx, peaks_indx = _remove_unwanted_extrema(onsets_indx, peaks_indx)
+        # import plotly.graph_objects as go
+        # i = 0
+        # fig = go.Figure()
+        # fig.add_trace(go.Scatter(y=array[i,:]))
+        # fig.add_trace(go.Scatter(x=onsets_indx[onsets_indx[:,0]==i][:,1], y=array[i, onsets_indx[onsets_indx[:,0]==i][:,1]], mode='markers'))
+        # fig.add_trace(go.Scatter(x=peaks_indx[peaks_indx[:,0]==i][:,1], y=array[i, peaks_indx[peaks_indx[:,0]==i][:,1]], mode='markers'))
+        # fig.show()
+    
     except RuntimeError:
         raise RuntimeError('No extrema found in any of the samples.')
 
@@ -193,21 +199,19 @@ def _eda_events(array, sampling_frequency, min_amplitude=0.01):
 def _remove_unwanted_extrema(onsets_indx, peaks_indx):
     """Internal method that received a set of extrema indices (corresponding to an array with shape (#samples, #points in sample)) and removes the first peaks if they are not preceeded by an onset and removes the last onsets if they are not followed by a peak."""
 
-    onsets_indx_by_sample = np.split(onsets_indx, np.argwhere(np.concatenate(([False], np.diff(onsets_indx[:,0]).astype('bool')))).flatten())
-    peaks_indx_by_sample = np.split(peaks_indx, np.argwhere(np.concatenate(([False], np.diff(peaks_indx[:,0]).astype('bool')))).flatten())
-
-    # if (len(onsets_indx_by_sample[0]) == 0 or len(peaks_indx_by_sample[0]) == 0):
-    #     raise RuntimeError('No extrema found in any of the samples.')
     if len(onsets_indx[:,0]) == 0 or len(peaks_indx[:,0]) == 0:
         raise RuntimeError('No extrema found in any of the samples.')
     
     # remove first peak if before onset and last onset if after peak
-    for i in range(len(peaks_indx_by_sample)):
-        remove_first_peak = peaks_indx_by_sample[i][0][1] < onsets_indx_by_sample[i][0][1]
-        remove_last_onset = onsets_indx_by_sample[i][-1][1] > peaks_indx_by_sample[i][-1][1]
-        peaks_indx_by_sample[i] = peaks_indx_by_sample[i][remove_first_peak:]
-        onsets_indx_by_sample[i] = onsets_indx_by_sample[i][:(len(onsets_indx_by_sample[i]) - remove_last_onset)]
-
+    onsets_indx_by_sample, peaks_indx_by_sample = [], []
+    for sample_id in np.unique(np.append(onsets_indx[:,0], peaks_indx[:,0])):
+        try:
+            remove_first_peak = peaks_indx[peaks_indx[:,0] == sample_id][0][1] < onsets_indx[onsets_indx[:,0] == sample_id][0][1]
+            remove_last_onset = onsets_indx[onsets_indx[:,0] == sample_id][-1][1] > peaks_indx[peaks_indx[:,0] == sample_id][-1][1]
+        except IndexError:
+            continue
+        peaks_indx_by_sample += [peaks_indx[peaks_indx[:,0] == sample_id][remove_first_peak:]]
+        onsets_indx_by_sample += [onsets_indx[onsets_indx[:,0] == sample_id][:(len(onsets_indx[onsets_indx[:,0] == sample_id]) - remove_last_onset)]]
 
     onsets_indx = np.concatenate(onsets_indx_by_sample)
     peaks_indx = np.concatenate(peaks_indx_by_sample)
