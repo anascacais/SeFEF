@@ -216,6 +216,12 @@ class Scorer:
             resolution = self._compute_resolution(forecasts, timestamps, bin_edges)
         
         uncertainty = self._compute_uncertainty(forecasts, timestamps, bin_edges)
+
+        observations =  np.zeros_like(forecasts)
+        timestamps_end_forecast = timestamps + self.forecast_horizon - 1 
+        sz_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]))[:,1]
+        observations[sz_indx] = 1
+        bs = (1/len(forecasts)) * np.sum((forecasts - observations) ** 2)
         
         return (uncertainty + reliability - resolution)
 
