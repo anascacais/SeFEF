@@ -173,13 +173,13 @@ class Scorer:
 
         binned_data = np.digitize(forecasts, bin_edges, right=True)
         y_avg = len(self.sz_onsets) / len(forecasts)
-        resolution = np.empty((len(np.unique(binned_data)),))
+        resolution = []
 
         for k in np.unique(binned_data):
             binned_indx = np.where(binned_data==k)
             events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
             y_k_avg = events_in_bin / len(forecasts[binned_indx])
-            resolution[k] = len(forecasts[binned_indx]) * ((y_k_avg - y_avg) ** 2)
+            resolution += [len(forecasts[binned_indx]) * ((y_k_avg - y_avg) ** 2)]
         
         return np.sum(resolution) * (1/len(forecasts))
 
@@ -187,13 +187,13 @@ class Scorer:
         '''Internal method that computes reliability, i.e. the agreement between forecasted and observed probabilities through the Brier score. "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
         
         binned_data = np.digitize(forecasts, bin_edges, right=True)
-        reliability = np.empty((len(np.unique(binned_data)),))
+        reliability = []
 
         for k in np.unique(binned_data):
             binned_indx = np.where(binned_data==k)
             events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
             y_k_avg = events_in_bin / len(forecasts[binned_indx])
-            reliability[k] = len(forecasts[binned_indx]) * ((np.mean(forecasts[binned_indx]) - y_k_avg) ** 2)
+            reliability += [len(forecasts[binned_indx]) * ((np.mean(forecasts[binned_indx]) - y_k_avg) ** 2)]
 
         return np.sum(reliability) * (1/len(forecasts))
 
@@ -217,7 +217,7 @@ class Scorer:
         
         uncertainty = self._compute_uncertainty(forecasts, timestamps, bin_edges)
         
-        return uncertainty + reliability - resolution
+        return (uncertainty + reliability - resolution)
 
     def _compute_skill(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the Brier skill score against a reference forecast. Simplification of BS of reference forecast as described in [Mason2004].'''
@@ -233,9 +233,9 @@ class Scorer:
 
     def _get_reference_forecasts(self, timestamps):
         '''Internal method that returns a reference forecast according to the specified method. "y_avg": observed relative frequency of true events for all forecasts.'''
-        if self.reference_method == 'hist_prior_prob':
-            return self.hist_prior_prob * np.ones_like(timestamps)
-        elif self.reference_method == 'prior_prob':
+        # if self.reference_method == 'hist_prior_prob':
+        #     return self.hist_prior_prob * np.ones_like(timestamps)
+        if self.reference_method == 'prior_prob':
             y_avg = len(self.sz_onsets) / len(timestamps)
             return y_avg * np.ones_like(timestamps)
         else:
@@ -251,7 +251,7 @@ class Scorer:
         bin_edges = np.insert(bin_edges, 0, 0.)
         diagram_data = pd.DataFrame(columns=['observed_proba', 'forecasted_proba'], index=(bin_edges[:-1] + bin_edges[1:]) / 2)
 
-        for k in range(len(diagram_data)):
+        for k in np.unique(binned_data):
             binned_indx = np.where(binned_data==k)
             events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
             y_k_avg = events_in_bin / len(forecasts[binned_indx])
