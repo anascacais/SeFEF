@@ -25,8 +25,8 @@ class Scorer:
         Dictionary where the keys are the metrics' names (as in "metrics2compute") and the value is the corresponding performance. It is initialized as an empty dictionary and populated in "compute_metrics".
     reference_method : str, defaults to "prior_prob"
         Method to compute the reference forecasts.
-    prior_prob : float64, defaults to None
-        Prior probability, aka historical likelihood (relative frequency) of seizures in train data. Used only as the "prior_prob" reference forecast compute the skill measure. 
+    hist_prior_prob : float64, defaults to None
+        Prior probability, aka historical likelihood (relative frequency) of seizures in train data. Used only as the "hist_prior_prob" reference forecast compute the skill measure. 
     Methods
     -------
     compute_metrics(forecasts, timestamps):
@@ -40,15 +40,22 @@ class Scorer:
         Raised when a metric name in "metrics2compute" is not a valid metric or when "reference_method" is not a valid method.
     AttributeError :
         Raised when 'compute_metrics' is called before 'compute_metrics'.
+
+    References
+    ----------
+    .. [Mason2004] [1] S. J. Mason, “On Using ‘Climatology’ as a Reference Strategy in the Brier and Ranked Probability Skill Scores,” Jul. 2004, Accessed: Nov. 06, 2024. [Online]. Available: https://journals.ametsoc.org/view/journals/mwre/132/7/1520-0493_2004_132_1891_oucaar_2.0.co_2.xml
+    .. [Murphy1973] A. H. Murphy, “A New Vector Partition of the Probability Score,” Jun. 1973, Accessed: Nov. 06, 2024. [Online]. Available: https://journals.ametsoc.org/view/journals/apme/12/4/1520-0450_1973_012_0595_anvpot_2_0_co_2.xml
     ''' 
 
-    def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='prior_prob', prior_prob=None):
+    def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='prior_prob', hist_prior_prob=None):
         self.metrics2compute = metrics2compute
         self.sz_onsets = sz_onsets
         self.forecast_horizon = forecast_horizon
         self.reference_method = reference_method
-        self.prior_prob = prior_prob
+        self.hist_prior_prob = hist_prior_prob
         self.performance = {}
+
+        self.metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC': self._compute_AUC, 'resolution': self._compute_resolution, 'reliability': self._compute_reliability, 'calibration': self._compute_reliability, 'BS': self._compute_BS,  'skill': self._compute_skill, 'BSS': self._compute_skill}
 
     def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_frequency', num_bins=10, draw_diagram=True):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
@@ -77,20 +84,16 @@ class Scorer:
 
         timestamps = timestamps[~np.isnan(forecasts)]
         forecasts = forecasts[~np.isnan(forecasts)] # TODO: VERIFY THIS 
-
-        metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC': self._compute_AUC, 'resolution': self._compute_resolution, 'reliability': self._compute_reliability, 'BS': self._compute_reliability, 'skill': self._compute_skill, 'BSS': self._compute_skill}
                     
         for metric_name in self.metrics2compute:
             if metric_name in ['Sen', 'FPR', 'TiW']:
                 tp, fp, fn = self._get_counts(forecasts, timestamps, threshold)
-                self.performance[metric_name] = metrics2function[metric_name](tp, fp, fn, forecasts)
+                self.performance[metric_name] = self.metrics2function[metric_name](tp, fp, fn, forecasts)
             elif metric_name == 'AUC':
-                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
-            elif metric_name in ['resolution', 'reliability', 'BS']:
+                self.performance[metric_name] = self.metrics2function[metric_name](forecasts, timestamps, threshold)
+            elif metric_name in ['resolution', 'reliability', 'calibration', 'BS', 'skill', 'BSS']:
                 bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
-                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, bin_edges)
-            elif metric_name in ['skill', 'BSS']:
-                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, binning_method, num_bins)
+                self.performance[metric_name] = self.metrics2function[metric_name](forecasts, timestamps, bin_edges)
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
         
@@ -98,6 +101,7 @@ class Scorer:
             self._reliability_diagram(forecasts, timestamps, bin_edges, binning_method)
         
         return self.performance
+
 
     # Deterministic metrics
     def _get_counts(self, forecasts, timestamps_start_forecast, threshold):
@@ -193,21 +197,47 @@ class Scorer:
 
         return np.sum(reliability) * (1/len(forecasts))
 
-    def _compute_skill(self, forecasts, timestamps, binning_method, num_bins):
-        '''Internal method that computes the Brier skill score against a reference forecast.'''
-        bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
-        skill = self._compute_reliability(forecasts, timestamps, bin_edges)
+    def _compute_uncertainty(self, forecasts, timestamps, bin_edges):
+        '''Internal method that computes uncertainty. "y_avg": observed relative frequency of true events for all forecasts'''
+        y_avg = len(self.sz_onsets) / len(forecasts)
+        return y_avg * (1-y_avg)
+    
+    def _compute_BS(self, forecasts, timestamps, bin_edges):
+        '''Internal method that computes the Brier score, through the decomposition proposed in [Murphy1973].'''
+        
+        if 'reliability' in self.performance.keys():
+            reliability = self.performance['reliability']
+        else:
+            reliability = self._compute_reliability(forecasts, timestamps, bin_edges)
+
+        if 'resolution' in self.performance.keys():
+            resolution = self.performance['resolution']
+        else:
+            resolution = self._compute_resolution(forecasts, timestamps, bin_edges)
+        
+        uncertainty = self._compute_uncertainty(forecasts, timestamps, bin_edges)
+        
+        return uncertainty + reliability - resolution
+
+    def _compute_skill(self, forecasts, timestamps, bin_edges):
+        '''Internal method that computes the Brier skill score against a reference forecast. Simplification of BS of reference forecast as described in [Mason2004].'''
+        
+        if 'BS' in self.performance.keys():
+            bs = self.performance['BS']
+        else:
+            bs = self._compute_BS(forecasts, timestamps, bin_edges)
+        
         ref_forecasts = self._get_reference_forecasts(timestamps)
-        #bin_edges = self._get_bins_indx(ref_forecasts, binning_method, num_bins)
-        ref_skill = self._compute_reliability(ref_forecasts, timestamps, bin_edges)
-        return 1 - skill / ref_skill
+        return 1 - bs / self._compute_uncertainty(ref_forecasts, None, None)
 
 
     def _get_reference_forecasts(self, timestamps):
         '''Internal method that returns a reference forecast according to the specified method. "y_avg": observed relative frequency of true events for all forecasts.'''
-        if self.reference_method == 'prior_prob':
-            #y_avg = len(self.sz_onsets) / len(timestamps)
-            return self.prior_prob * np.ones_like(timestamps)
+        if self.reference_method == 'hist_prior_prob':
+            return self.hist_prior_prob * np.ones_like(timestamps)
+        elif self.reference_method == 'prior_prob':
+            y_avg = len(self.sz_onsets) / len(timestamps)
+            return y_avg * np.ones_like(timestamps)
         else:
             raise ValueError(f'{self.reference_method} is not a valid method to compute the reference forecasts.')
         
