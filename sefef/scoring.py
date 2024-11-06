@@ -47,7 +47,7 @@ class Scorer:
         self.reference_method = reference_method
         self.performance = {}
 
-    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_forecast_number', num_bins=None, draw_diagram=True):
+    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_frequency', num_bins=10, draw_diagram=True):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
         
         Parameters
@@ -58,11 +58,11 @@ class Scorer:
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "forecasts") are valid. 
         threshold : float64, defaults to 0.5
             Probability value to apply as the high-likelihood threshold. 
-        binning_method : str, defaults to "equal_forecast_number"
+        binning_method : str, defaults to "equal_frequency"
             Method used to determine the number of bins used to compute probabilistic metrics. Available methods are: 
                 - "equal_width": number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.
                 - "equal_frequency": number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.
-        num_bins : int64, defaults to None
+        num_bins : int64, defaults to 10
             Number of bins used to compute probabilistic metrics. If None, it is calculated as np.ceil(#forecasts^(1/3)), otherwise "num_bins" is used as the number of bins.
         draw_diagram : bool, defaults to True
             Whether to draw the reliability diagram after computing all required metrics. 
@@ -83,9 +83,11 @@ class Scorer:
                 self.performance[metric_name] = metrics2function[metric_name](tp, fp, fn, forecasts)
             elif metric_name == 'AUC':
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, threshold)
-            elif metric_name in ['resolution', 'reliability', 'BS', 'skill', 'BSS']:
+            elif metric_name in ['resolution', 'reliability', 'BS']:
                 bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
                 self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, bin_edges)
+            elif metric_name in ['skill', 'BSS']:
+                self.performance[metric_name] = metrics2function[metric_name](forecasts, timestamps, binning_method, num_bins)
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
         
@@ -162,6 +164,11 @@ class Scorer:
     def _compute_resolution(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability. "y_avg": observed relative frequency of true events for all forecasts; "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
         
+        # ground_truth_labels = np.zeros_like(forecasts)
+        # timestamps_end_forecast = timestamps + self.forecast_horizon - 1 
+        # sz_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]))[:,1]
+        # ground_truth_labels[sz_indx] = 1
+
         binned_data = np.digitize(forecasts, bin_edges, right=True)
         y_avg = len(self.sz_onsets) / len(forecasts)
         resolution = np.empty((len(np.unique(binned_data)),))
@@ -169,8 +176,8 @@ class Scorer:
         for k in np.unique(binned_data):
             binned_indx = np.where(binned_data==k)
             events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
-            y_k_avg = events_in_bin / len(binned_indx)
-            resolution[k] = len(binned_indx) * ((y_k_avg - y_avg) ** 2)
+            y_k_avg = events_in_bin / len(forecasts[binned_indx])
+            resolution[k] = len(forecasts[binned_indx]) * ((y_k_avg - y_avg) ** 2)
         
         return np.sum(resolution) * (1/len(forecasts))
 
@@ -183,16 +190,18 @@ class Scorer:
         for k in np.unique(binned_data):
             binned_indx = np.where(binned_data==k)
             events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
-            y_k_avg = events_in_bin / len(binned_indx)
-            reliability[k] = len(binned_indx) * ((np.mean(forecasts[binned_indx]) - y_k_avg) ** 2)
+            y_k_avg = events_in_bin / len(forecasts[binned_indx])
+            reliability[k] = len(forecasts[binned_indx]) * ((np.mean(forecasts[binned_indx]) - y_k_avg) ** 2)
 
         return np.sum(reliability) * (1/len(forecasts))
 
-    def _compute_skill(self, forecasts, timestamps, binned_data):
+    def _compute_skill(self, forecasts, timestamps, binning_method, num_bins):
         '''Internal method that computes the Brier skill score against a reference forecast.'''
-        skill = self._compute_reliability(forecasts, timestamps, binned_data)
+        bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
+        skill = self._compute_reliability(forecasts, timestamps, bin_edges)
         ref_forecasts = self._get_reference_forecasts(timestamps)
-        ref_skill = self._compute_reliability(ref_forecasts, timestamps, binned_data)
+        #bin_edges = self._get_bins_indx(ref_forecasts, binning_method, num_bins)
+        ref_skill = self._compute_reliability(ref_forecasts, timestamps, bin_edges)
         return 1 - skill / ref_skill
 
 
@@ -217,7 +226,7 @@ class Scorer:
         for k in range(len(diagram_data)):
             binned_indx = np.where(binned_data==k)
             events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
-            y_k_avg = events_in_bin / len(binned_indx[0])
+            y_k_avg = events_in_bin / len(forecasts[binned_indx])
             diagram_data.iloc[k,:] = [y_k_avg, np.mean(forecasts[binned_indx])]
         
         fig.add_trace(go.Scatter(

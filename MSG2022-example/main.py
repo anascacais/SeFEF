@@ -32,10 +32,10 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
 
     # Segment files
-    # if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
-    if not os.path.exists(preprocessed_data_path):
-        os.makedirs(preprocessed_data_path)
-    create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
+    if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
+        if not os.path.exists(preprocessed_data_path):
+            os.makedirs(preprocessed_data_path)
+        create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'), sampling_frequency=sampling_frequency, features2extract=features2extract)
     
     # SeFEF - labeling module
     with h5py.File(os.path.join(preprocessed_data_path, f'dataset.h5'), 'r+') as h5dataset:
@@ -72,7 +72,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             
             # SeFEF - scoring module
             scorer = scoring.Scorer(metrics2compute=metrics2compute, sz_onsets=sz_onsets_test, forecast_horizon=60*60, reference_method='naive')
-            fold_performance = scorer.compute_metrics(forecasts, ts, draw_diagram=True)
+            fold_performance = scorer.compute_metrics(forecasts, ts, binning_method='equal_frequency', num_bins=10, draw_diagram=True)
             
             for metric in fold_performance.keys():
                 performance[metric].append(fold_performance[metric])
