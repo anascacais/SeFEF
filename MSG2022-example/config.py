@@ -1,6 +1,6 @@
 # Store useful variables and configuration
 
-patient_id = '1965'
+patient_id = '1904'
 
 data_folder_path = '/media/MSG/MSG2022/train'
 

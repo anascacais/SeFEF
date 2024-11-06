@@ -21,8 +21,10 @@ class TimeSeriesCV:
     
     Attributes
     ---------- 
-    n_min_events : int, optional
+    n_min_events_train : int, optional
         Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing. Defaults to 3.
+    n_min_events_test : int, optional
+        Minimum number of lead seizures to include in the test set. Should guarantee at least one lead seizure is left for testing. Defaults to 1.
     initial_train_duration : int, optional
         Set duration of train for initial split (in seconds). Defaults to 1/3 of total recorded duration.
     test_duration : int, optional
@@ -52,8 +54,9 @@ class TimeSeriesCV:
         Raised when 'plot' is called before 'split'.
     ''' 
 
-    def __init__(self, n_min_events=3, initial_train_duration=None, test_duration=None):
-        self.n_min_events = n_min_events
+    def __init__(self, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None):
+        self.n_min_events_train = n_min_events_train
+        self.n_min_events_test = n_min_events_test
         self.initial_train_duration = initial_train_duration
         self.test_duration = test_duration
         self.method = 'expanding'
@@ -93,15 +96,15 @@ class TimeSeriesCV:
             self.test_duration = (1/2) * self.initial_train_duration
 
         # Check basic conditions
-        if dataset.metadata['sz_onset'].sum() < self.n_min_events + 1:
-            raise ValueError("Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events').")
+        if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
+            raise ValueError("Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' or 'n_min_events_test').")
 
         if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
             raise ValueError("Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' and/or 'test_duration').")
 
         # Get index for initial split
         initial_cutoff_ts = self._get_cutoff_ts(dataset)
-        initial_cutoff_ts = self._check_criteria(dataset, initial_cutoff_ts)
+        #initial_cutoff_ts = self._check_criteria(dataset, initial_cutoff_ts)
 
         if iteratively:
             if plot: raise ValueError("The variables 'iteratively' and 'plot' cannot both be set to True.")
@@ -121,7 +124,7 @@ class TimeSeriesCV:
         self.split_ind_ts = np.zeros((self.n_folds, 3), dtype='int64')
         
         train_start_ts = dataset.metadata.index[0]
-        test_start_ts = initial_cutoff_ts.copy()
+        test_start_ts = initial_cutoff_ts
         
         for i in range(self.n_folds):
             if i != 0:
@@ -129,6 +132,7 @@ class TimeSeriesCV:
                 test_start_ts = test_end_ts
 
             test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[0]
+            train_start_ts, test_start_ts, test_end_ts = self._check_criteria(dataset, train_start_ts, test_start_ts, test_end_ts)
             self.split_ind_ts[i, :] = [train_start_ts, test_start_ts, test_end_ts]
             
             yield train_start_ts, test_start_ts, test_end_ts
@@ -144,37 +148,41 @@ class TimeSeriesCV:
         return cutoff_ts
 
 
-    def _check_criteria(self, dataset, initial_cutoff_ts):
+    def _check_criteria(self, dataset, train_start_ts, test_start_ts, test_end_ts):
         """Internal method for iterating the initial cutoff timestamp in order to respect the condition on the minimum number of seizures."""
 
         criteria_check = [False] * 2
 
-        initial_cutoff_ind = dataset.metadata.index.get_loc(initial_cutoff_ts)
+        train_start_ind = dataset.metadata.index.get_loc(train_start_ts)
+        test_start_ind = dataset.metadata.index.get_loc(test_start_ts)
+        test_end_ind = dataset.metadata.index.get_loc(test_end_ts)
 
         while not all(criteria_check):
-            initial_train_set = dataset.metadata.iloc[:initial_cutoff_ind]
-            after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
+            train_set = dataset.metadata.iloc[train_start_ind:test_start_ind]
+            test_set = dataset.metadata.iloc[test_start_ind:test_end_ind]
             
             # Criteria 1: min number of events in train
-            criteria_check[0] = initial_train_set['sz_onset'].sum() >= self.n_min_events
+            criteria_check[0] = train_set['sz_onset'].sum() >= self.n_min_events_train
             # Criteria 2: min number of events in test
-            criteria_check[1] = after_train_set['sz_onset'].sum() >= 1
+            criteria_check[1] = test_set['sz_onset'].sum() >= self.n_min_events_test
             
             if not all(criteria_check):
                 print(f"Failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]}")
                 
                 if (not criteria_check[0]) and (not criteria_check[1]):
-                    raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events', 'initial_train_duration', and/or 'test_duration').")
+                    raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train', 'initial_train_duration', and/or 'test_duration').")
                 elif not criteria_check[0]:
-                    initial_cutoff_ind += 1
+                    test_start_ind += 1
+                    test_end_ind += 1
                 elif not criteria_check[1]:
-                    initial_cutoff_ind -= 1
+                    test_start_ind -= 1
+                    test_end_ind -= 1
         
         # Check if there's enough data left for at least one test set
-        if after_train_set['total_duration'].sum() < self.test_duration:
-            raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events', 'initial_train_duration', and/or 'test_duration').")
+        if dataset.metadata.iloc[train_start_ind:]['total_duration'].sum() < self.test_duration:
+            raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train', 'initial_train_duration', and/or 'test_duration').")
 
-        return dataset.metadata.iloc[initial_cutoff_ind].name
+        return dataset.metadata.iloc[train_start_ind].name, dataset.metadata.iloc[test_start_ind].name, dataset.metadata.iloc[test_end_ind].name
 
     def plot(self, dataset):
         ''' Plots the TSCV folds with the available data.
