@@ -97,7 +97,9 @@ class Scorer:
             else: 
                 raise ValueError(f'{metric_name} is not a valid metric.')
         
+        
         if draw_diagram:
+            #self._compute_CORP_reliability_diagram(forecasts, timestamps)
             self._reliability_diagram(forecasts, timestamps, bin_edges, binning_method)
         
         return self.performance
@@ -319,3 +321,91 @@ class Scorer:
         fig.show()
         pass
 
+
+    def _compute_CORP_reliability_diagram(self, forecasts, timestamps):
+        ''''''
+        from scores.processing.isoreg_impl import isotonic_fit
+
+        observations =  np.zeros_like(forecasts)
+        timestamps_end_forecast = timestamps + self.forecast_horizon - 1 
+        sz_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]))[:,1]
+        observations[sz_indx] = 1
+
+        iso_fit_result = isotonic_fit(
+            fcst=forecasts,
+            obs=observations,
+            functional="mean",
+            bootstraps=100,
+            confidence_level=0.95
+        )
+
+        figure = go.Figure()
+        band_fillcolour = 'rgba(184,225,134,0.5)'
+        line_colour = '#4dac26'
+        hist_color = 'rgba(128,0,128,0.2)'
+
+        total_min = min(np.min(iso_fit_result["fcst_sorted"]), np.min(iso_fit_result["confidence_band_lower_values"]))
+        total_max = max(np.max(iso_fit_result["fcst_sorted"]), np.max(iso_fit_result["confidence_band_upper_values"]))
+
+        # Generate 10 bins for forecast histogram
+        bins = np.linspace(np.min(iso_fit_result["fcst_sorted"]), np.max(iso_fit_result["fcst_sorted"]), 11)
+        hist, _ = np.histogram(
+                iso_fit_result["fcst_sorted"],
+                bins=bins,
+                weights=iso_fit_result["fcst_counts"],
+            )
+
+        figure.add_trace(
+            go.Scatter(
+                x=iso_fit_result["fcst_sorted"],
+                y=iso_fit_result["confidence_band_upper_values"],
+                mode='lines',
+                line=dict(width=0, color=band_fillcolour),
+                showlegend=False,
+                name='95% confidence band'
+            )
+        )
+        figure.add_trace(go.Scatter(
+            x=iso_fit_result["fcst_sorted"],
+            y=iso_fit_result["confidence_band_lower_values"],
+            mode='lines',
+            line=dict(width=0, color=band_fillcolour),
+            fillcolor=band_fillcolour,
+            fill='tonexty',
+            name='95% confidence band'
+        ))
+        figure.add_shape(
+            type='line', x0=total_min, y0=total_min, x1=total_max, y1=total_max,
+            line=dict(color='black', dash='dot')
+        )
+        figure.add_trace(go.Scatter(
+            x=iso_fit_result["fcst_sorted"], y=iso_fit_result["regression_values"], name='Calibrated line',
+            mode='lines', line=dict(color=line_colour)
+        ))
+        # figure.add_bar(
+        #     x=bins,
+        #     y=hist,
+        #     width=1.5,
+        #     marker=dict(color=hist_color,),
+        #     name="Forecast histogram"
+        # )
+
+        # figure.add_annotation(x=total_min+2, y=total_max-1,
+        #         text="underprediction",
+        #         showarrow=False)
+
+        # figure.add_annotation(x=total_max-1, y=total_min+1,
+        #         text="overprediction",
+        #         showarrow=False)
+
+        # figure.update_layout(
+        #     title='Reliability Diagram for Synthetic Temperature Forecast',
+        #     xaxis_title='Forecasted value (Celsius)',
+        #     yaxis_title='Recalibrated value (Celsius)',
+        #     legend=dict(x=0.25,y=0.9),
+        #     height=700,
+        #     width=700,
+        # )
+
+        figure.show()
+        pass
