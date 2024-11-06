@@ -23,8 +23,10 @@ class Scorer:
         Forecast horizon in seconds, i.e. time in the future for which the forecasts are valid.  
     performance : dict
         Dictionary where the keys are the metrics' names (as in "metrics2compute") and the value is the corresponding performance. It is initialized as an empty dictionary and populated in "compute_metrics".
-    reference_method : str, defaults to "naive"
+    reference_method : str, defaults to "prior_prob"
         Method to compute the reference forecasts.
+    prior_prob : float64, defaults to None
+        Prior probability, aka historical likelihood (relative frequency) of seizures in train data. Used only as the "prior_prob" reference forecast compute the skill measure. 
     Methods
     -------
     compute_metrics(forecasts, timestamps):
@@ -40,11 +42,12 @@ class Scorer:
         Raised when 'compute_metrics' is called before 'compute_metrics'.
     ''' 
 
-    def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='naive'):
+    def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='prior_prob', prior_prob=None):
         self.metrics2compute = metrics2compute
         self.sz_onsets = sz_onsets
         self.forecast_horizon = forecast_horizon
         self.reference_method = reference_method
+        self.prior_prob = prior_prob
         self.performance = {}
 
     def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_frequency', num_bins=10, draw_diagram=True):
@@ -163,11 +166,6 @@ class Scorer:
 
     def _compute_resolution(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability. "y_avg": observed relative frequency of true events for all forecasts; "y_k_avg": observed relative frequency of true events for the kth probability bin.'''
-        
-        # ground_truth_labels = np.zeros_like(forecasts)
-        # timestamps_end_forecast = timestamps + self.forecast_horizon - 1 
-        # sz_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]))[:,1]
-        # ground_truth_labels[sz_indx] = 1
 
         binned_data = np.digitize(forecasts, bin_edges, right=True)
         y_avg = len(self.sz_onsets) / len(forecasts)
@@ -207,9 +205,9 @@ class Scorer:
 
     def _get_reference_forecasts(self, timestamps):
         '''Internal method that returns a reference forecast according to the specified method. "y_avg": observed relative frequency of true events for all forecasts.'''
-        if self.reference_method == 'naive':
-            y_avg = len(self.sz_onsets) / len(timestamps)
-            return y_avg * np.ones_like(timestamps)
+        if self.reference_method == 'prior_prob':
+            #y_avg = len(self.sz_onsets) / len(timestamps)
+            return self.prior_prob * np.ones_like(timestamps)
         else:
             raise ValueError(f'{self.reference_method} is not a valid method to compute the reference forecasts.')
         

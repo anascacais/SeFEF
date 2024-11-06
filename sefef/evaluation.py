@@ -304,11 +304,12 @@ class TimeSeriesCV:
 
             train_indx = np.where(np.logical_and(timestamps >= train_start_ts, timestamps < test_start_ts))
             test_indx = np.where(np.logical_and(timestamps >= test_start_ts, timestamps < test_end_ts))
-
+            
+            train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
             test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
             
             yield (
-                (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx], h5dataset['timestamps'][train_indx]),
+                (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx], h5dataset['timestamps'][train_indx], sz_onsets[train_sz_indx]),
                 (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx], h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
                 )
 

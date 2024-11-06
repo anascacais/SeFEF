@@ -52,7 +52,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
         for ifold, (train_data, test_data) in enumerate(tscv.iterate(h5dataset)):
             print(f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
                                 
-            X_train, y_train, _ = train_data
+            X_train, y_train, _, sz_onsets_train = train_data
             X_test, y_test, ts_test, sz_onsets_test = test_data
 
             # Apply scaling
@@ -71,7 +71,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
             forecasts, ts = forecast.postprocess(forecast_horizon=60*60, smooth_win=5*60, origin='clock-time')
             
             # SeFEF - scoring module
-            scorer = scoring.Scorer(metrics2compute=metrics2compute, sz_onsets=sz_onsets_test, forecast_horizon=60*60, reference_method='naive')
+            scorer = scoring.Scorer(metrics2compute=metrics2compute, sz_onsets=sz_onsets_test, forecast_horizon=60*60, reference_method='prior_prob', prior_prob=len(sz_onsets_train)/len(y_train))
             fold_performance = scorer.compute_metrics(forecasts, ts, binning_method='equal_frequency', num_bins=10, draw_diagram=True)
             
             for metric in fold_performance.keys():
