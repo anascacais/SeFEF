@@ -22,7 +22,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
 
     # SeFEF - evaluation module 
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=sampling_frequency)
-    tscv = evaluation.TimeSeriesCV(n_min_events_train=1, initial_train_duration=6553600.0/2)
+    tscv = evaluation.TimeSeriesCV(test_duration=int(dataset.metadata['total_duration'].sum() / 4), n_folds=3)
     tscv.split(dataset, iteratively=False, plot=True)
 
     # Segmentation

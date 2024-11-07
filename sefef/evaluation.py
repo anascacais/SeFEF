@@ -17,22 +17,25 @@ from .visualization import COLOR_PALETTE, hex_to_rgba
 
 
 class TimeSeriesCV:
-    ''' Implements time series cross validation (TSCV).
+    ''' Implements time series cross validation (TSCV). Requires the user to provide one of the following sets of inputs:
+        - "n_min_events_train", "n_min_events_test", "initial_train_duration", "test_duration"
+        - "n_min_events_train", "n_min_events_test", "initial_train_duration", "n_folds"
+        - "n_min_events_train", "n_min_events_test", "test_duration", "n_folds"
     
     Attributes
     ---------- 
-    n_min_events_train : int, optional
-        Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing. Defaults to 3.
-    n_min_events_test : int, optional
-        Minimum number of lead seizures to include in the test set. Should guarantee at least one lead seizure is left for testing. Defaults to 1.
+    n_min_events_train : int, defaults to 3. 
+        Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing.
+    n_min_events_test : int, defaults to 1
+        Minimum number of lead seizures to include in the test set. Should guarantee at least one lead seizure is left for testing. 
     initial_train_duration : int, optional
-        Set duration of train for initial split (in seconds). Defaults to 1/3 of total recorded duration.
+        Set duration of train for initial split (in seconds).
     test_duration : int, optional
-        Set duration of test (in seconds). Defaults to 1/2 of 'initial_train_duration'.
+        Set duration of test (in seconds).
+    n_folds : int, optional
+        Number of folds for the TSCV.
     method : str
         Method for TSCV - can be either 'expanding' or 'sliding'. Only 'expanding' is implemented atm.
-    n_folds : int
-        Number of folds for the TSCV, determined according to the attributes set by the user and available data.
     split_ind_ts : array-like, shape (n_folds, 3)
         Contains split timestamp indices (train_start_ts, test_start_ts, test_end_ts) for each fold. Is initiated as None and populated during 'split' method.
     Methods
@@ -48,20 +51,32 @@ class TimeSeriesCV:
     
     Raises
     -------
+    AttributeError :
+        Raised if not enough attributes are provided for the split. 
     ValueError :
         Raised whenever TSCV is not passible to be performed under the attributes set by the user and available data. 
     AttributeError :
         Raised when 'plot' is called before 'split'.
     ''' 
 
-    def __init__(self, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None):
+    def __init__(self, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None, n_folds=None):
+
         self.n_min_events_train = n_min_events_train
         self.n_min_events_test = n_min_events_test
         self.initial_train_duration = initial_train_duration
         self.test_duration = test_duration
-        self.method = 'expanding'
+        self.n_folds = n_folds
+        
+        if (initial_train_duration != None and test_duration != None):
+            self.attribute2compute = 'n_folds'
+        elif (initial_train_duration != None and n_folds != None):
+            self.attribute2compute = 'test_duration'
+        elif (test_duration != None and n_folds != None):
+            self.attribute2compute = 'initial_train_duration'
+        else:
+            raise AttributeError("Not enough inputs were provided. Please provide 'initial_train_duration'+'test_duration' or 'initial_train_duration'+'n_folds' or 'test_duration'+'n_folds'.")
 
-        self.n_folds = None
+        self.method = 'expanding'
         self.split_ind_ts = None
 
     def split(self, dataset, iteratively=False, plot=False):
@@ -87,23 +102,25 @@ class TimeSeriesCV:
         test_end_ts : int
             Timestamp index for the end of the test set.
         """
-        
-        if self.initial_train_duration is None:
-            total_recorded_duration = dataset.files_metadata['total_duration'].sum()
-            self.initial_train_duration = (1/3) * total_recorded_duration
 
-        if self.test_duration is None:
-            self.test_duration = (1/2) * self.initial_train_duration
+        # if self.initial_train_duration is None:
+        #     total_recorded_duration = dataset.files_metadata['total_duration'].sum()
+        #     self.initial_train_duration = (1/3) * total_recorded_duration
+
+        # if self.test_duration is None:
+        #     self.test_duration = (1/2) * self.initial_train_duration
 
         # Check basic conditions
         if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
             raise ValueError(f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
 
-        if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
-            raise ValueError(f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
+        # if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
+        #     raise ValueError(f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
 
+        #self._compute_missing_attribute(dataset)
+        
         # Get index for initial split
-        initial_cutoff_ts = self._get_cutoff_ts(dataset)
+        initial_cutoff_ts = self._get_initial_cutoff_ts(dataset)
         initial_cutoff_ts = self._check_criteria_initial_split(dataset, initial_cutoff_ts)
 
         if iteratively:
@@ -113,6 +130,10 @@ class TimeSeriesCV:
             for _ in self._expanding_window_split(dataset, initial_cutoff_ts): pass
             if plot: self.plot(dataset)
             return None
+
+    # def _compute_missing_attribute(self, dataset):
+    #     ''''''
+    #     if self.attribute2compute == 'n_folds'
 
 
 
@@ -142,12 +163,19 @@ class TimeSeriesCV:
                 
 
     def _sliding_window_split(self):
-        """Internal method for sliding window cross-validation."""
-        pass
+        """Internal method for sliding window cross-validation. """
+        raise NotImplementedError()
 
-    def _get_cutoff_ts(self, dataset):
+    def _get_initial_cutoff_ts(self, dataset):
         """Internal method for getting the first iteration of the cutoff timestamp based on 'self.initial_train_duration'."""
-        cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[0]
+
+        if (self.attribute2compute == 'n_folds' or self.attribute2compute == 'test_duration'):
+            cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[0]
+        elif self.attribute2compute == 'initial_train_duration':
+            self.initial_train_duration = dataset.metadata['total_duration'].sum() - (self.n_folds * self.test_duration)
+            if self.initial_train_duration <= 0:
+                raise ValueError(f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'test_duration' ({self.test_duration}) or 'n_folds' ({self.n_folds})).")
+            cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[0]
         return cutoff_ts
 
 
@@ -177,9 +205,9 @@ class TimeSeriesCV:
                 elif not criteria_check[1]:
                     initial_cutoff_ind -= 1
         
-        # Check if there's enough data left for at least one test set
-        if after_train_set['total_duration'].sum() < self.test_duration:
-            raise ValueError(f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train' ({self.n_min_events_train}), 'initial_train_duration' ({self.initial_train_duration}), and/or 'test_duration' ({self.test_duration})).")
+        # # Check if there's enough data left for at least one test set
+        # if after_train_set['total_duration'].sum() < self.test_duration:
+        #     raise ValueError(f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train' ({self.n_min_events_train}), 'initial_train_duration' ({self.initial_train_duration}), and/or 'test_duration' ({self.test_duration})).")
 
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
