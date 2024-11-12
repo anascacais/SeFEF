@@ -377,7 +377,7 @@ class Dataset:
         - 'first_timestamp' (Int64): The Unix-time timestamp (in seconds) of the first sample of each file.
         - 'total_duration' (int): Total duration of file in seconds (equivalent to #samples * sampling_frequency)
         It is expected that data within each file is non-overlapping in time and that there are no time gaps between samples in the file. 
-    sz_onsets: array-like
+    sz_onsets: np.array
         Contains the Unix-time timestamps (in seconds) corresponding to the onsets of seizures.
     sampling_frequency: int
         Frequency at which the data is stored in each file.
@@ -385,22 +385,33 @@ class Dataset:
 
     def __init__(self, files_metadata, sz_onsets, sampling_frequency):
         self.files_metadata = files_metadata
-        self.sz_onsets = sz_onsets
+        self.sz_onsets = np.array(sz_onsets)
         self.sampling_frequency = sampling_frequency
 
         self.metadata = self._get_metadata()
+        self.metadata = self.metadata.astype({'filepath': str, 'total_duration': 'Int64', 'sz_onset': 'Int64'})
 
     def _get_metadata(self):
         """Internal method that updates 'self.metadata' by placing each seizure onset within an acquisition file."""
 
-        timestamps_file_start = self.files_metadata['first_timestamp']
-        timestamps_file_end = self.files_metadata['first_timestamp'] + self.files_metadata['total_duration']
+        timestamps_file_start = self.files_metadata['first_timestamp'].to_numpy()
+        timestamps_file_end = (self.files_metadata['first_timestamp'] + self.files_metadata['total_duration']).to_numpy()
+
+        # identify seizures within existant files
+        sz_onset_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :]))
 
         files_metadata = self.files_metadata.copy()
-        files_metadata.set_index(pd.Index(files_metadata['first_timestamp'], dtype='Int64'), inplace=True)
-        files_metadata.drop(['first_timestamp'], axis=1, inplace=True)
+        files_metadata['sz_onset'] = pd.Series(dtype='Int64')
+        files_metadata.loc[sz_onset_indx[:, 1], 'sz_onset'] = 1
 
-        sz_onsets = pd.DataFrame([1]*len(self.sz_onsets), index=pd.Index(self.sz_onsets,
-                                 dtype='Int64'), columns=['sz_onset'])
+        # identify seizures outside of existant files
+        sz_onset_indx = np.argwhere(~np.any(((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :])), axis=1)).flatten()
+        if len(sz_onset_indx) != 0:
+            sz_onsets = pd.DataFrame({'first_timestamp': self.sz_onsets[sz_onset_indx], 'sz_onset': [1]*len(sz_onset_indx)}, dtype='Int64')
+            files_metadata = pd.merge(files_metadata.reset_index(), sz_onsets.reset_index(), on='first_timestamp', how='outer', suffixes=('_df1', '_df2'))
+            files_metadata['sz_onset'] = files_metadata['sz_onset_df1'].combine_first(files_metadata['sz_onset_df2'])
 
-        return files_metadata.join(sz_onsets, how='outer')
+        files_metadata.set_index(pd.Index(files_metadata['first_timestamp'].to_numpy(), dtype='Int64'), inplace=True)
+        files_metadata = files_metadata.loc[:, ['filepath', 'total_duration', 'sz_onset']]
+
+        return files_metadata
