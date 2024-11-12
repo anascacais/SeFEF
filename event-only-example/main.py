@@ -13,6 +13,8 @@ def main(data_path=data_path):
     metadata = create_metadata_df(events_onsets)
 
     dataset = evaluation.Dataset(metadata, events_onsets, sampling_frequency=None)
+    tscv = evaluation.TimeSeriesCV()
+    tscv.split(dataset, iteratively=False, plot=True)
     pass
 
 

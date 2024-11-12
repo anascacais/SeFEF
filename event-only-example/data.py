@@ -34,18 +34,17 @@ def get_events_onsets(event_dates, min_onset_distance='1 days'):
 
     Returns
     -------
-    events_onset : list
-        Contains the unix timstamp of the onsets of events.
+    event_timestamps : list
+        Contains the unix timestamp (in seconds) of the onsets of events.
     """
     min_onset_distance = pd.to_timedelta(min_onset_distance).to_numpy()
-    datetime_diff = np.diff(event_dates)
+    event_dates_dt = pd.to_datetime(event_dates)
+    datetime_diff = event_dates_dt.diff()
 
-    onsets_index = np.where(datetime_diff != min_onset_distance)
-    onsets_index = np.add(onsets_index, np.ones_like(onsets_index))
+    onsets_index = [0] + np.where(datetime_diff > min_onset_distance)[0].tolist()
+    event_timestamps = event_dates_dt[onsets_index].astype(int) // 10**9
 
-    event_dates[onsets_index].flatten()
-
-    return np.insert(event_dates[onsets_index].flatten(), 0, event_dates[0]).tolist()
+    return event_timestamps
 
 
 def create_metadata_df(events_onset, freq='D'):
@@ -53,8 +52,8 @@ def create_metadata_df(events_onset, freq='D'):
 
     Parameters
     ---------- 
-    events_onset : list
-        Contains the unix timstamp of the onsets of events.
+    event_timestamps : list
+        Contains the unix timestamp (in seconds) of the onsets of events.
     freq : str, defaults to "D" (1 day)
         Duration (in seconds) to attribute to each segment.
 
@@ -67,7 +66,7 @@ def create_metadata_df(events_onset, freq='D'):
             - 'total_duration' (int64): duration (in seconds) of the data within the file.
     '''
 
-    files_metadata = pd.DataFrame(index=pd.to_datetime(events_onset), columns=['filepath', 'total_duration'])
+    files_metadata = pd.DataFrame(index=pd.to_datetime(events_onset, unit='s'), columns=['filepath', 'total_duration'])
     files_metadata = files_metadata.asfreq(freq=freq)
 
     files_metadata.loc[:, 'total_duration'] = files_metadata['total_duration'].astype(
@@ -76,4 +75,4 @@ def create_metadata_df(events_onset, freq='D'):
     files_metadata['first_timestamp'] = files_metadata.index.astype('datetime64[ns]').astype('int') // 10**9
     files_metadata = files_metadata.astype({'filepath': str, 'total_duration': int})
 
-    return files_metadata
+    return files_metadata.reset_index(drop=True)

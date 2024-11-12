@@ -9,11 +9,9 @@ import pandas as pd
 import scipy
 import biosppy as bp
 import scipy.signal
-import plotly.graph_objects as go
-from pyarrow.lib import ArrowInvalid 
 
 
-# local 
+# local
 from features import extract_features
 
 
@@ -75,7 +73,7 @@ def get_indx_first_last_preictal_samples(labels_array):
 
 def get_metadata(data_folder_path, patient_id):
     ''' Get metadata on available data files
-    
+
     Parameters
     ---------- 
     data_folder_path : str
@@ -84,7 +82,7 @@ def get_metadata(data_folder_path, patient_id):
         Patient ID to filter data from the dataframe containing file metadata.
     sampling_frequency: int
         Frequency at which the data is stored in each file.
-    
+
     Returns
     -------
     files_metadata : pd.DataFrame
@@ -93,8 +91,8 @@ def get_metadata(data_folder_path, patient_id):
         - 'first_timestamp' (int64): unix timestamp (in seconds) of the first data point in file.
         - 'total_duration' (int64): duration (in seconds) of the data within the file.
     sz_onsets : list
-        Contains the unixe timstamp of the start of the files containing the onset of seizures
-    ''' 
+        Contains the unix timestamp (in seconds) of the start of the files containing the onset of seizures
+    '''
 
     # Convert file metadata and sz onsets into expected format
     train_labels_all = pd.read_csv(os.path.join(data_folder_path, 'train_labels.csv'))
@@ -103,28 +101,30 @@ def get_metadata(data_folder_path, patient_id):
 
     if patient_id not in train_labels_all['id'].unique():
         raise ValueError(f'ID {patient_id} does not exist in dataset')
-    
+
     train_labels = train_labels_all.loc[train_labels_all['id'] == patient_id, :]
 
-    ## Convert UTC datetime to Unix timestamp
-    train_labels.loc[:,'utc-datetime'] = pd.to_datetime(train_labels['utc-datetime'], format='UTC-%Y_%m_%d-%H_%M_%S', utc=True, errors='coerce')
+    # Convert UTC datetime to Unix timestamp
+    train_labels.loc[:, 'utc-datetime'] = pd.to_datetime(train_labels['utc-datetime'],
+                                                         format='UTC-%Y_%m_%d-%H_%M_%S', utc=True, errors='coerce')
     files_metadata = pd.DataFrame({
-        'filepath': train_labels.reset_index()['filepath'], 
-        'first_timestamp': train_labels.reset_index()['utc-datetime'].astype('datetime64[ns, UTC]').astype('int') // 10**9 # Convert to seconds
-    }) 
-    files_metadata['total_duration'] = [10*60] * len(files_metadata) # 10min in seconds
+        'filepath': train_labels.reset_index()['filepath'],
+        # Convert to seconds
+        'first_timestamp': train_labels.reset_index()['utc-datetime'].astype('datetime64[ns, UTC]').astype('int') // 10**9
+    })
+    files_metadata['total_duration'] = [10*60] * len(files_metadata)  # 10min in seconds
 
-    ## Get seizure onsets
-    sz_onset_df = get_sz_onset_df(train_labels.reset_index()[['utc-datetime', 'label']].to_numpy(), mpl=10) # mpl set to 10min to account for the pre-ictal labeling done in MSG2022
+    # Get seizure onsets
+    # mpl set to 10min to account for the pre-ictal labeling done in MSG2022
+    sz_onset_df = get_sz_onset_df(train_labels.reset_index()[['utc-datetime', 'label']].to_numpy(), mpl=10)
     sz_onsets = (sz_onset_df.index.astype('int') // 10**9).tolist()
 
     return files_metadata, sz_onsets
 
-    
 
 def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2extract):
     ''' Create hdf5 files containing a 'train' and a 'test' dataset.
-    
+
     Parameters
     ---------- 
     files : list
@@ -138,7 +138,7 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
             - Statistical: "mean", "power", "std", "kurtosis", "skewness", "mean_1stdiff", "mean_2nddiff", "entropy".
             - EDA event-based: "SCR_amplitude", "SCR_peakcount", "mean_SCR_amplitude", "mean_SCR_risetime", "sum_SCR_amplitudes", "sum_SCR_risetimes", "SCR_AUC".
             - Hjorth: "hjorth_activity", "hjorth_mobility", "hjorth_complexity".
-    
+
     Returns
     -------
     None
@@ -147,19 +147,22 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
     ------
     ValueError : 
         When "features2extract" contains feature names that do not exist.
-    ''' 
+    '''
 
     with h5py.File(dataset_filepath, 'w') as hdf:
 
         lost_files = 0
-        
+
         for i, filepath in enumerate(files):
 
             try:
-                timestamps_data, data, channels_names, new_sampling_frequency = read_and_segment(filepath, fs=sampling_frequency, decimate_factor=8)
+                timestamps_data, data, channels_names, new_sampling_frequency = read_and_segment(
+                    filepath, fs=sampling_frequency, decimate_factor=8)
                 timestamps_data, data = preprocess(data, timestamps_data, channels_names, new_sampling_frequency)
-                timestamps_data, data = quality_control(data, timestamps_data, channels_names, sampling_frequency) # TODO: NOT IMPLEMETED
-                timestamps_data, data = extract_features(data, timestamps_data, channels_names, features2extract, sampling_frequency)
+                timestamps_data, data = quality_control(
+                    data, timestamps_data, channels_names, sampling_frequency)  # TODO: NOT IMPLEMETED
+                timestamps_data, data = extract_features(
+                    data, timestamps_data, channels_names, features2extract, sampling_frequency)
 
                 # transform first dimension (samples) into list
                 data = np.split(data, data.shape[0], axis=0)
@@ -184,12 +187,11 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
                 continue
 
             dataset = (timestamps_data, data)
-            
+
             if 'data' not in hdf.keys():
                 create_dataset(hdf, dataset)
             else:
                 update_dataset(hdf, dataset)
-
 
             print(f"Processed {i+1}/{len(files)}", end="\r")
 
@@ -232,17 +234,17 @@ def read_and_segment(filepath, decimate_factor=8, fs=128, sample_duration=60):  
         raw_df = pd.read_parquet(filepath, engine="pyarrow")
     except FileNotFoundError:
         raise FileNotFoundError
-    except: 
+    except:
         raise ValueError
-    
+
     raw_np = np.array(np.split(raw_df.values, np.arange(
         sample_length, len(raw_df), sample_length), axis=0))
-    
+
     channels_names = raw_df.columns.to_list()[1:]
 
     # removes sample if there is any NaN
     raw_np_noNaN = raw_np[~np.isnan(raw_np).any(axis=(1, 2))]
-    
+
     if len(raw_np_noNaN) == 0:
         raise RuntimeError("No data in the file")
 
@@ -278,48 +280,49 @@ def preprocess(samples, timestamps, channel_names, sampling_frequency):
         Contains the start timestamp of each sample.
     samples: array-like, shape (#samples, #data points in sample, #channels)
         Data array.
-    ''' 
+    '''
 
     if samples is None:
         return None
-    
+
     preprocessed_data = []
 
-    channel2function = {'acc_x': _acc_preprocess, 'acc_y': _acc_preprocess, 'acc_z': _acc_preprocess, 'acc_mag': _acc_preprocess, 'bvp': _bvp_preprocess, 'eda': _eda_preprocess, 'hr': _hr_preprocess, 'temp': _temp_preprocess}
-    
+    channel2function = {'acc_x': _acc_preprocess, 'acc_y': _acc_preprocess, 'acc_z': _acc_preprocess,
+                        'acc_mag': _acc_preprocess, 'bvp': _bvp_preprocess, 'eda': _eda_preprocess, 'hr': _hr_preprocess, 'temp': _temp_preprocess}
+
     for channel_ind, channel_name in enumerate(channel_names):
         new_channel_data = channel2function[channel_name](samples[:, :, channel_ind], sampling_frequency)
         preprocessed_data += [new_channel_data]
-        
+
     preprocessed_data = np.stack(preprocessed_data, axis=-1)
 
     # remove nan if existant
-    valid_samples_indx = np.all(~np.isnan(preprocessed_data), axis=(1,2))
+    valid_samples_indx = np.all(~np.isnan(preprocessed_data), axis=(1, 2))
     return timestamps[valid_samples_indx], preprocessed_data[valid_samples_indx, :, :]
-
 
 
 def _acc_preprocess(array, sampling_frequency):
     """Internal method that applies a preprocessing methodology to accelerometer (ACC) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
     return array
 
+
 def _bvp_preprocess(array, sampling_frequency):
     """Internal method that applies a preprocessing methodology to blood volume pulse (BVP) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
     # get filter coefficients
     b, a = scipy.signal.butter(
-        N=4, 
+        N=4,
         Wn=[1, 7],
         fs=sampling_frequency,
         btype='bandpass'
     )
     return scipy.signal.filtfilt(b, a, array, axis=1)
-    
+
 
 def _eda_preprocess(array, sampling_frequency):
     """Internal method that applies a preprocessing methodology to electrodermal activity (EDA) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
     # get filter coefficients
     b, a = scipy.signal.butter(
-        N=4, 
+        N=4,
         Wn=5,
         fs=sampling_frequency,
         btype='lowpass'
@@ -329,9 +332,11 @@ def _eda_preprocess(array, sampling_frequency):
     filtered, _ = _smoother(filtered, kernel="boxzen", size=sm_size, mirror=True)
     return filtered
 
+
 def _hr_preprocess(array, sampling_frequency):
     """Internal method that applies a preprocessing methodology to heart rate (HR) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
     return array
+
 
 def _temp_preprocess(array, sampling_frequency):
     """Internal method that applies a preprocessing methodology to temperature (TEMP) samples in an array with shape (#samples, #data points in sample), and return as array with the same dimensions but potentially less #samples."""
@@ -433,12 +438,12 @@ def _smoother(signal=None, kernel="boxzen", size=10, mirror=True, **kwargs):
     w = win / win.sum()
     if mirror:
         aux = np.concatenate(
-            (signal[:,0][:, np.newaxis] * np.ones((len(signal), size)), signal, signal[:,-1][:, np.newaxis] * np.ones((len(signal), size))), axis=1
-            )
-        smoothed = scipy.signal.convolve(aux, w[np.newaxis,:], mode='same')
-        smoothed = smoothed[:,size:-size]
+            (signal[:, 0][:, np.newaxis] * np.ones((len(signal), size)), signal, signal[:, -1][:, np.newaxis] * np.ones((len(signal), size))), axis=1
+        )
+        smoothed = scipy.signal.convolve(aux, w[np.newaxis, :], mode='same')
+        smoothed = smoothed[:, size:-size]
     else:
-        smoothed = scipy.signal.convolve(aux, w[np.newaxis,:], mode='same')
+        smoothed = scipy.signal.convolve(aux, w[np.newaxis, :], mode='same')
 
     # output
     params = {"kernel": kernel, "size": size, "mirror": mirror}
@@ -448,6 +453,7 @@ def _smoother(signal=None, kernel="boxzen", size=10, mirror=True, **kwargs):
     names = ("signal", "params")
 
     return bp.utils.ReturnTuple(args, names)
+
 
 def quality_control(samples, timestamps, channel_names, sampling_frequency):
     ''' Quality control procedure according to the type of signal. Samples whose channels (any) are considered inadequate, are removed.   
@@ -469,18 +475,19 @@ def quality_control(samples, timestamps, channel_names, sampling_frequency):
         Contains the start timestamp of each sample.
     samples: array-like, shape (#samples, #data points in sample, #channels)
         Data array.
-    ''' 
+    '''
     if samples is None:
         return None
-    
+
     quality = []
 
-    channel2function = {'acc_x': _acc_quality, 'acc_y': _acc_quality, 'acc_z': _acc_quality, 'acc_mag': _acc_quality, 'bvp': _bvp_quality, 'eda': _eda_quality, 'hr': _hr_quality, 'temp': _temp_quality}
-    
+    channel2function = {'acc_x': _acc_quality, 'acc_y': _acc_quality, 'acc_z': _acc_quality,
+                        'acc_mag': _acc_quality, 'bvp': _bvp_quality, 'eda': _eda_quality, 'hr': _hr_quality, 'temp': _temp_quality}
+
     for channel_ind, channel_name in enumerate(channel_names):
         new_channel_data = channel2function[channel_name](samples[:, :, channel_ind], sampling_frequency)
         quality += [new_channel_data]
-        
+
     quality = np.concatenate(quality, axis=1)
 
     # remove nan if existant
@@ -492,27 +499,30 @@ def _acc_quality(array, sampling_frequency):
     """Internal method that applies a quality control methodology to accelerometer (ACC) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1)."""
     return np.ones((len(array), 1))
 
+
 def _bvp_quality(array, sampling_frequency):
     """Internal method that applies a quality control methodology to blood volume pulse (BVP) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1)."""
     return np.ones((len(array), 1))
+
 
 def _eda_quality(array, sampling_frequency):
     """Internal method that applies a quality control methodology to elecrodermal activity (EDA) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1). Empirical thresholds based on Kleckner et al. (2018)."""
     return np.ones((len(array), 1))
 
+
 def _hr_quality(array, sampling_frequency):
     """Internal method that applies a quality control methodology to heart rate (HR) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1)."""
     return np.ones((len(array), 1))
+
 
 def _temp_quality(array, sampling_frequency):
     """Internal method that applies a quality control methodology to temperature (TEMP) samples in an array with shape (#samples, #data points in sample), and return as array with shape (#samples, 1). Empirical thresholds based on Kleckner et al. (2018)."""
     return np.ones((len(array), 1))
 
 
-
 def create_dataset(hdf, data):
     hdf.create_dataset('timestamps',
-                       data=data[0], maxshape=[None,], dtype='int64') # float64??
+                       data=data[0], maxshape=[None,], dtype='int64')  # float64??
     hdf.create_dataset(f'data', data=data[1], maxshape=[None]+[d for d in data[1][0].shape], dtype='float32')
 
 
