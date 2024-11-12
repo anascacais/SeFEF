@@ -12,13 +12,13 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# local 
+# local
 from .visualization import COLOR_PALETTE, hex_to_rgba
 
 
 class TimeSeriesCV:
     ''' Implements time series cross validation (TSCV).
-    
+
     Attributes
     ---------- 
     n_min_events_train : int, defaults to 3
@@ -45,14 +45,14 @@ class TimeSeriesCV:
         Plots the TSCV folds with the available data.
     iterate() : 
         Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
-    
+
     Raises
     -------
     ValueError :
         Raised whenever TSCV is not passible to be performed under the attributes set by the user and available data. 
     AttributeError :
         Raised when 'plot' is called before 'split'.
-    ''' 
+    '''
 
     def __init__(self, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None):
         self.n_min_events_train = n_min_events_train
@@ -68,7 +68,7 @@ class TimeSeriesCV:
         """ Get timestamp indices to split data for time series cross-validation. 
         - The train set would be given by metadata.loc[train_start_ts : test_start_ts].
         - The test set would be given by metadata.loc[test_start_ts : test_end_ts].
-        
+
         Parameters:
         -----------
         dataset : Dataset
@@ -87,7 +87,7 @@ class TimeSeriesCV:
         test_end_ts : int
             Timestamp index for the end of the test set.
         """
-        
+
         if self.initial_train_duration is None:
             total_recorded_duration = dataset.files_metadata['total_duration'].sum()
             self.initial_train_duration = (1/3) * total_recorded_duration
@@ -97,10 +97,12 @@ class TimeSeriesCV:
 
         # Check basic conditions
         if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
-            raise ValueError(f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
+            raise ValueError(
+                f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
 
         if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
-            raise ValueError(f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
+            raise ValueError(
+                f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
 
         # Get index for initial split
         initial_cutoff_ts = self._get_cutoff_ts(dataset)
@@ -108,35 +110,34 @@ class TimeSeriesCV:
         print('\n')
 
         if iteratively:
-            if plot: raise ValueError("The variables 'iteratively' and 'plot' cannot both be set to True.")
+            if plot:
+                raise ValueError("The variables 'iteratively' and 'plot' cannot both be set to True.")
             return self._expanding_window_split(dataset, initial_cutoff_ts)
-        else: 
-            for _ in self._expanding_window_split(dataset, initial_cutoff_ts): pass
-            if plot: self.plot(dataset)
+        else:
+            for _ in self._expanding_window_split(dataset, initial_cutoff_ts):
+                pass
+            if plot:
+                self.plot(dataset)
             return None
-
-
 
     def _expanding_window_split(self, dataset, initial_cutoff_ts):
         """Internal method for expanding window cross-validation."""
 
         after_train_set = dataset.metadata.loc[initial_cutoff_ts:]
-        # self.n_folds = int(min(after_train_set['total_duration'].sum() // self.test_duration, after_train_set['sz_onset'].sum()))
-        #self.split_ind_ts = np.zeros((self.n_folds, 3), dtype='int64')
-        
         train_start_ts = dataset.metadata.index[0]
         test_start_ts = initial_cutoff_ts.copy()
-        
+
         test_end_ts = 0
         split_ind_ts = []
-        
+
         while test_end_ts <= dataset.metadata.iloc[-1].name:
             if test_end_ts != 0:
                 after_train_set = dataset.metadata.loc[test_end_ts:]
                 test_start_ts = test_end_ts
 
             try:
-                test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[0]
+                test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[
+                    0]
                 test_end_ts = self._check_criteria_split(after_train_set, test_end_ts)
                 split_ind_ts += [[train_start_ts, test_start_ts, test_end_ts]]
 
@@ -147,7 +148,6 @@ class TimeSeriesCV:
         self.split_ind_ts = np.array(split_ind_ts)
         self.n_folds = len(self.split_ind_ts)
         print('\n')
-        
 
     def _sliding_window_split(self):
         """Internal method for sliding window cross-validation."""
@@ -155,13 +155,13 @@ class TimeSeriesCV:
 
     def _get_cutoff_ts(self, dataset):
         """Internal method for getting the first iteration of the cutoff timestamp based on 'self.initial_train_duration'."""
-        cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[0]
+        cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[
+            0]
         return cutoff_ts
-
 
     def _check_criteria_initial_split(self, dataset, initial_cutoff_ts):
         """Internal method for iterating the initial cutoff timestamp in order to respect the condition on the minimum number of seizures."""
-        
+
         criteria_check = [False] * 2
 
         initial_cutoff_ind = dataset.metadata.index.get_loc(initial_cutoff_ts)
@@ -171,109 +171,111 @@ class TimeSeriesCV:
         while not all(criteria_check):
             initial_train_set = dataset.metadata.iloc[:initial_cutoff_ind]
             after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
-            
+
             # Criteria 1: min number of events in train
             criteria_check[0] = initial_train_set['sz_onset'].sum() >= self.n_min_events_train
             # Criteria 2: min number of events in test
             criteria_check[1] = after_train_set['sz_onset'].sum() >= self.n_min_events_test
-            
+
             if not all(criteria_check):
-                print(f"Initial split: failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]} (trial {t+1})", end='\r')
-                
+                print(
+                    f"Initial split: failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]} (trial {t+1})", end='\r')
+
                 if (not criteria_check[0]) and (not criteria_check[1]):
-                    raise ValueError("Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train', 'initial_train_duration', and/or 'test_duration').")
+                    raise ValueError(
+                        "Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train', 'initial_train_duration', and/or 'test_duration').")
                 elif not criteria_check[0]:
                     initial_cutoff_ind += 1
                 elif not criteria_check[1]:
                     initial_cutoff_ind -= 1
-            
+
             t += 1
-        
+
         # Check if there's enough data left for at least one test set
         if after_train_set['total_duration'].sum() < self.test_duration:
-            raise ValueError(f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train' ({self.n_min_events_train}), 'initial_train_duration' ({self.initial_train_duration}), and/or 'test_duration' ({self.test_duration})).")
+            raise ValueError(
+                f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train' ({self.n_min_events_train}), 'initial_train_duration' ({self.initial_train_duration}), and/or 'test_duration' ({self.test_duration})).")
 
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
     def _check_criteria_split(self, dataset, cutoff_ts):
         """Internal method for iterating the cutoff timestamp for n>1 folds in order to respect the condition on the minimum number of seizures in test."""
-        
+
         criteria_check = [False] * 2
         cutoff_ind = dataset.index.get_loc(cutoff_ts)
 
         t = 0
-        
+
         while not all(criteria_check):
             test_set = dataset.iloc[:cutoff_ind]
             # Criteria 1: Check if there's enough data left for a test set
             criteria_check[0] = cutoff_ind <= len(dataset)
             # Criteria 2: min number of events in test
             criteria_check[1] = test_set['sz_onset'].sum() >= self.n_min_events_test
-            
 
             if not all(criteria_check):
-                print(f"Initial split: failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]} (trial {t+1})", end='\r')
+                print(
+                    f"Initial split: failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]} (trial {t+1})", end='\r')
 
                 if not criteria_check[0]:
-                    return dataset.iloc[cutoff_ind].name 
+                    return dataset.iloc[cutoff_ind].name
                 elif not criteria_check[1]:
                     cutoff_ind += 1
-        
+
             t += 1
 
         return dataset.iloc[cutoff_ind].name
-    
 
     def plot(self, dataset):
         ''' Plots the TSCV folds with the available data.
-        
+
         Parameters
         ---------- 
         dataset : Dataset
             Instance of Dataset.
-        ''' 
+        '''
         if self.split_ind_ts is None:
-            raise AttributeError("Object has no attribute 'split_ind_ts'. Make sure the 'split' method has been run beforehand.")
-        
+            raise AttributeError(
+                "Object has no attribute 'split_ind_ts'. Make sure the 'split' method has been run beforehand.")
+
         fig = go.Figure()
-        
+
         for ifold in range(self.n_folds):
 
-            train_set = dataset.metadata.loc[self.split_ind_ts[ifold, 0] : self.split_ind_ts[ifold, 1]]
-            test_set = dataset.metadata.loc[self.split_ind_ts[ifold, 1] : self.split_ind_ts[ifold, 2]]
+            train_set = dataset.metadata.loc[self.split_ind_ts[ifold, 0]: self.split_ind_ts[ifold, 1]]
+            test_set = dataset.metadata.loc[self.split_ind_ts[ifold, 1]: self.split_ind_ts[ifold, 2]]
 
             # handle missing data between files
             train_set = self._handle_missing_data(train_set, ifold+1)
             test_set = self._handle_missing_data(test_set, ifold+1)
 
-            # add existant data 
+            # add existant data
             fig.add_trace(self._get_scatter_plot(train_set, color=COLOR_PALETTE[0]))
             fig.add_trace(self._get_scatter_plot(test_set, color=COLOR_PALETTE[1]))
-            
+
             # add seizures
             fig.add_trace(self._get_scatter_plot_sz(
-                train_set[train_set['sz_onset'] == 1], 
+                train_set[train_set['sz_onset'] == 1],
                 color=COLOR_PALETTE[0]
             ))
             fig.add_trace(self._get_scatter_plot_sz(
-                test_set[test_set['sz_onset'] == 1], 
+                test_set[test_set['sz_onset'] == 1],
                 color=COLOR_PALETTE[1]
             ))
 
         # Config plot layout
         fig.update_yaxes(
-            gridcolor = 'lightgrey',
-            autorange = 'reversed',
-            tickvals = list(range(1, self.n_folds+1)),
-            ticktext = [f'Fold {i}  ' for i in range(1, self.n_folds+1)],
-            tickfont = dict(size=12),
+            gridcolor='lightgrey',
+            autorange='reversed',
+            tickvals=list(range(1, self.n_folds+1)),
+            ticktext=[f'Fold {i}  ' for i in range(1, self.n_folds+1)],
+            tickfont=dict(size=12),
         )
         fig.update_layout(
-            title = 'Time Series Cross Validation',
-            showlegend = False,
-            plot_bgcolor = 'white')
+            title='Time Series Cross Validation',
+            showlegend=False,
+            plot_bgcolor='white')
         fig.show()
-
 
     def _handle_missing_data(self, dataset, ind):
         """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
@@ -298,34 +300,34 @@ class TimeSeriesCV:
     def _get_scatter_plot(self, dataset, color):
         """Internal method that returns a line-scatter-plot where data exists."""
         return go.Scatter(
-            x = dataset.index, 
-            y = dataset.data, 
-            mode = 'lines',
-            line = {
+            x=dataset.index,
+            y=dataset.data,
+            mode='lines',
+            line={
                 'color': 'rgba' + str(hex_to_rgba(
-                    h = color,
+                    h=color,
                     alpha=1
                 )),
                 'width': 7
             }
-            )
+        )
 
     def _get_scatter_plot_sz(self, dataset, color):
         """Internal method that returns a marker-scatter-plot where sz onsets exist."""
         return go.Scatter(
-            x = dataset.index, 
-            y = dataset.data-0.1, 
-            mode = 'text',
-            text = ['ϟ'] * len(dataset),
-            textfont = dict(
+            x=dataset.index,
+            y=dataset.data-0.1,
+            mode='text',
+            text=['ϟ'] * len(dataset),
+            textfont=dict(
                 size=16,
                 color=color  # Set the color of the Unicode text here
             )
         )
-    
+
     def iterate(self, h5dataset):
         ''' Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
-        
+
         Parameters
         ---------- 
         h5dataset : HDF5 file
@@ -334,7 +336,7 @@ class TimeSeriesCV:
             - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
             - "annotations": contains the labels (0: interictal, 1: preictal) for each sample in the "data" dataset, with shape (#samples, ).
             - "sz_onsets": contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). 
-        
+
         Returns
         -------
         tuple: 
@@ -342,9 +344,9 @@ class TimeSeriesCV:
             - Where:
                 - "*_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
                 - "*_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
-                - "*_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
-                - "*_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
-        ''' 
+                - "*_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "Int64". 
+                - "*_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "Int64". 
+        '''
         timestamps = h5dataset['timestamps'][()]
         sz_onsets = h5dataset['sz_onsets'][()]
 
@@ -352,36 +354,34 @@ class TimeSeriesCV:
 
             train_indx = np.where(np.logical_and(timestamps >= train_start_ts, timestamps < test_start_ts))
             test_indx = np.where(np.logical_and(timestamps >= test_start_ts, timestamps < test_end_ts))
-            
+
             train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
             test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
-            
+
             yield (
-                (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx], h5dataset['timestamps'][train_indx], sz_onsets[train_sz_indx]),
-                (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx], h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
-                )
-
-
-        
-
+                (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
+                 h5dataset['timestamps'][train_indx], sz_onsets[train_sz_indx]),
+                (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx],
+                 h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
+            )
 
 
 class Dataset:
     ''' Create a Dataset with metadata on the data that will be used for training and testing
-    
+
     Attributes
     ---------- 
     files_metadata: pd.DataFrame
         Input DataFrame with the following columns:
         - 'filepath' (str): Path to each file containing data.
-        - 'first_timestamp' (int64): The Unix-time timestamp (in seconds) of the first sample of each file.
+        - 'first_timestamp' (Int64): The Unix-time timestamp (in seconds) of the first sample of each file.
         - 'total_duration' (int): Total duration of file in seconds (equivalent to #samples * sampling_frequency)
         It is expected that data within each file is non-overlapping in time and that there are no time gaps between samples in the file. 
     sz_onsets: array-like
         Contains the Unix-time timestamps (in seconds) corresponding to the onsets of seizures.
     sampling_frequency: int
         Frequency at which the data is stored in each file.
-    ''' 
+    '''
 
     def __init__(self, files_metadata, sz_onsets, sampling_frequency):
         self.files_metadata = files_metadata
@@ -392,15 +392,15 @@ class Dataset:
 
     def _get_metadata(self):
         """Internal method that updates 'self.metadata' by placing each seizure onset within an acquisition file."""
+
+        timestamps_file_start = self.files_metadata['first_timestamp']
+        timestamps_file_end = self.files_metadata['first_timestamp'] + self.files_metadata['total_duration']
+
         files_metadata = self.files_metadata.copy()
-        files_metadata.set_index(pd.Index(files_metadata['first_timestamp'], dtype='int64'), inplace=True)
-        files_metadata.drop(['first_timestamp'], axis=1, inplace=True) 
+        files_metadata.set_index(pd.Index(files_metadata['first_timestamp'], dtype='Int64'), inplace=True)
+        files_metadata.drop(['first_timestamp'], axis=1, inplace=True)
 
-        sz_onsets = pd.DataFrame([1]*len(self.sz_onsets), index=pd.Index(self.sz_onsets, dtype='int64'), columns=['sz_onset'])
-        
+        sz_onsets = pd.DataFrame([1]*len(self.sz_onsets), index=pd.Index(self.sz_onsets,
+                                 dtype='Int64'), columns=['sz_onset'])
+
         return files_metadata.join(sz_onsets, how='outer')
-        
-        
-
-
-    

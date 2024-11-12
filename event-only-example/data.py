@@ -62,8 +62,8 @@ def create_metadata_df(events_onset, freq='D'):
     files_metadata : pd.DataFrame
         Dataframe containing metadata on the "fake" data files. Contains the following columns:
             - 'filepath' (str): filled with NaN
-            - 'first_timestamp' (int64): unix timestamp (in seconds) of the start of the segment.
-            - 'total_duration' (int64): duration (in seconds) of the data within the file.
+            - 'first_timestamp' (Int64): unix timestamp (in seconds) of the start of the segment.
+            - 'total_duration' (Int64): duration (in seconds) of the data within the file.
     '''
 
     files_metadata = pd.DataFrame(index=pd.to_datetime(events_onset, unit='s'), columns=['filepath', 'total_duration'])
