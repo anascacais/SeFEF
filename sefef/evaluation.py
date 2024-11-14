@@ -414,4 +414,9 @@ class Dataset:
         files_metadata.set_index(pd.Index(files_metadata['first_timestamp'].to_numpy(), dtype='Int64'), inplace=True)
         files_metadata = files_metadata.loc[:, ['filepath', 'total_duration', 'sz_onset']]
 
+        files_metadata = files_metadata.fillna({'total_duration': 0, 'sz_onset': 0})
+        files_metadata = pd.concat((
+            files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series([files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='Int64')),
+            ), ignore_index=False) # add empty row at the end for indexing
+
         return files_metadata
