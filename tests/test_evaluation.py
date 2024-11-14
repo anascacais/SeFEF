@@ -118,8 +118,8 @@ class TestDataset(unittest.TestCase):
             'filepath': ['file1.csv', 'file2.csv', 'file3.csv', np.nan],
             'total_duration': [300, 300, 300, 0],
             'sz_onset': [0, 1, 0, 0],
-        }, index=pd.Series([1609459200, 1609459500, 1609459800, 1609460100], dtype='Int64'))
-        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'Int64', 'total_duration': 'Int64'})
+        }, index=pd.Series([1609459200, 1609459500, 1609459800, 1609460100], dtype='int64'))
+        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'int64', 'total_duration': 'int64'})
 
         pd.testing.assert_frame_equal(self.dataset.metadata, expected_metadata)
 
@@ -134,8 +134,8 @@ class TestDataset(unittest.TestCase):
             'filepath': [np.nan, np.nan],
             'total_duration': [0, 0],
             'sz_onset': [1, 0]
-        }, index=pd.Series([1609459520, 1609459520], dtype='Int64'))
-        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'Int64', 'total_duration': 'Int64'})
+        }, index=pd.Series([1609459520, 1609459520], dtype='int64'))
+        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'int64', 'total_duration': 'int64'})
 
         empty_files_metadata = pd.DataFrame(columns=['filepath', 'first_timestamp', 'total_duration'])
         dataset = Dataset(empty_files_metadata, self.sz_onsets, self.sampling_frequency)
@@ -144,8 +144,8 @@ class TestDataset(unittest.TestCase):
 
     # 3.c) Test Edge Cases: Empty Metadata Test behavior when files_metadata is empty.
     def test_empty_files_metadata(self):
-        expected_metadata = pd.DataFrame(columns=['filepath', 'total_duration', 'sz_onset'], index=pd.Series([], dtype='Int64'))
-        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'Int64', 'total_duration': 'Int64'})
+        expected_metadata = pd.DataFrame(columns=['filepath', 'total_duration', 'sz_onset'], index=pd.Series([], dtype='int64'))
+        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'int64', 'total_duration': 'int64'})
 
         empty_files_metadata = pd.DataFrame(columns=['filepath', 'first_timestamp', 'total_duration'])
         dataset = Dataset(empty_files_metadata, [], self.sampling_frequency)
@@ -160,8 +160,8 @@ class TestDataset(unittest.TestCase):
             'filepath': [np.nan, 'file1.csv', 'file2.csv', 'file3.csv', np.nan],
             'total_duration': [0, 300, 300, 300, 0],
             'sz_onset': [1, 0, 0, 1, 0]
-        }, index=pd.Series([1609459100, 1609459200, 1609459500, 1609459800, 1609460100], dtype='Int64'))
-        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'Int64', 'total_duration': 'Int64'})
+        }, index=pd.Series([1609459100, 1609459200, 1609459500, 1609459800, 1609460100], dtype='int64'))
+        expected_metadata = expected_metadata.astype({'filepath': str, 'sz_onset': 'int64', 'total_duration': 'int64'})
 
         dataset = Dataset(self.files_metadata, out_of_range_onsets, self.sampling_frequency)
         

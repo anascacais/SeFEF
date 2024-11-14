@@ -35,7 +35,7 @@ def add_annotations(h5dataset, sz_onsets_ts, preictal_duration=3600, prediction_
 
 
 def add_sz_onsets(h5dataset, sz_onsets_ts):
-    ''' Add "sz_onsets", with shape (#seizures, ) and dtype "Int64", to HDF5 file object, corresponding to the Unix timestamps of each seizure onset. 
+    ''' Add "sz_onsets", with shape (#seizures, ) and dtype "int64", to HDF5 file object, corresponding to the Unix timestamps of each seizure onset. 
 
     Parameters
     ---------- 
@@ -52,4 +52,4 @@ def add_sz_onsets(h5dataset, sz_onsets_ts):
     None, but adds a dataset instance to the h5dataset file object.
     '''
 
-    h5dataset.create_dataset("sz_onsets", data=sz_onsets_ts, dtype='Int64')
+    h5dataset.create_dataset("sz_onsets", data=sz_onsets_ts, dtype='int64')

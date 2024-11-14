@@ -23,7 +23,7 @@ def get_sz_onset_df(labels_array, mpl=10):
     labels_array: numpy array
         numpy array with dimension (points in sample, samples, 2),
             where the first dimension is the time series within each sample (with resolution=time_resolution) and
-            the third dimension corresponds to the datetime of the start of that point (dtype='Int64') as well as the label (dtype='Int64')
+            the third dimension corresponds to the datetime of the start of that point (dtype='int64') as well as the label (dtype='int64')
     mpl: int
         minimum prediction latency in minutes
 
@@ -88,8 +88,8 @@ def get_metadata(data_folder_path, patient_id):
     files_metadata : pd.DataFrame
         Dataframe containing metadata on the data files. Contains the following columns:
         - 'filepath' (str): fiepath to file (with 'data_folder_path' as parent folder).
-        - 'first_timestamp' (Int64): unix timestamp (in seconds) of the first data point in file.
-        - 'total_duration' (Int64): duration (in seconds) of the data within the file.
+        - 'first_timestamp' (int64): unix timestamp (in seconds) of the first data point in file.
+        - 'total_duration' (int64): duration (in seconds) of the data within the file.
     sz_onsets : list
         Contains the unix timestamp (in seconds) of the start of the files containing the onset of seizures
     '''
@@ -522,7 +522,7 @@ def _temp_quality(array, sampling_frequency):
 
 def create_dataset(hdf, data):
     hdf.create_dataset('timestamps',
-                       data=data[0], maxshape=[None,], dtype='Int64')
+                       data=data[0], maxshape=[None,], dtype='int64')
     hdf.create_dataset(f'data', data=data[1], maxshape=[None]+[d for d in data[1][0].shape], dtype='float32')
 
 

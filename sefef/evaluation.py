@@ -282,7 +282,7 @@ class TimeSeriesCV:
         """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
 
         # Create row for nan after files that are not contiguous (after file duration)
-        missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration'][:-1]).tolist() + [False]]
+        missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration'][:-1]).tolist() + [False]].astype({'sz_onset': 'Int64'})
         missing_data.set_index(missing_data.index + missing_data['total_duration'], inplace=True)
         missing_data.iloc[:, :] = ['', 0, np.nan]
 
@@ -345,8 +345,8 @@ class TimeSeriesCV:
             - Where:
                 - "*_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
                 - "*_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
-                - "*_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "Int64". 
-                - "*_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "Int64". 
+                - "*_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
+                - "*_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
         '''
         timestamps = h5dataset['timestamps'][()]
         sz_onsets = h5dataset['sz_onsets'][()]
@@ -375,8 +375,8 @@ class Dataset:
     files_metadata: pd.DataFrame
         Input DataFrame with the following columns:
         - 'filepath' (str): Path to each file containing data.
-        - 'first_timestamp' (Int64): The Unix-time timestamp (in seconds) of the first sample of each file.
-        - 'total_duration' (int): Total duration of file in seconds (equivalent to #samples * sampling_frequency)
+        - 'first_timestamp' (int64): The Unix-time timestamp (in seconds) of the first sample of each file.
+        - 'total_duration' (int64): Total duration of file in seconds (equivalent to #samples * sampling_frequency)
         It is expected that data within each file is non-overlapping in time and that there are no time gaps between samples in the file. 
     sz_onsets: np.array
         Contains the Unix-time timestamps (in seconds) corresponding to the onsets of seizures.
@@ -385,12 +385,12 @@ class Dataset:
     '''
 
     def __init__(self, files_metadata, sz_onsets, sampling_frequency):
-        self.files_metadata = files_metadata
+        self.files_metadata = files_metadata.astype({'first_timestamp': 'int64', 'total_duration': 'int64'})
         self.sz_onsets = np.array(sz_onsets)
         self.sampling_frequency = sampling_frequency
 
         self.metadata = self._get_metadata()
-        self.metadata = self.metadata.astype({'filepath': str, 'total_duration': 'Int64', 'sz_onset': 'Int64'})
+        self.metadata = self.metadata.astype({'filepath': str})
 
     def _get_metadata(self):
         """Internal method that updates 'self.metadata' by placing each seizure onset within an acquisition file."""
@@ -402,23 +402,23 @@ class Dataset:
         sz_onset_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :]))
 
         files_metadata = self.files_metadata.copy()
-        files_metadata['sz_onset'] = pd.Series(dtype='Int64')
+        files_metadata['sz_onset'] = 0
         files_metadata.loc[sz_onset_indx[:, 1], 'sz_onset'] = 1
 
         # identify seizures outside of existant files
         sz_onset_indx = np.argwhere(~np.any(((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :])), axis=1)).flatten()
         if len(sz_onset_indx) != 0:
-            sz_onsets = pd.DataFrame({'first_timestamp': self.sz_onsets[sz_onset_indx], 'sz_onset': [1]*len(sz_onset_indx)}, dtype='Int64')
+            sz_onsets = pd.DataFrame({'first_timestamp': self.sz_onsets[sz_onset_indx], 'sz_onset': [1]*len(sz_onset_indx)}, dtype='int64')
             files_metadata = pd.merge(files_metadata.reset_index(), sz_onsets.reset_index(), on='first_timestamp', how='outer', suffixes=('_df1', '_df2'))
-            files_metadata['sz_onset'] = files_metadata['sz_onset_df1'].combine_first(files_metadata['sz_onset_df2'])
+            files_metadata['sz_onset'] = files_metadata['sz_onset_df1'].combine_first(files_metadata['sz_onset_df2']).fillna(0).astype('int64')
+            files_metadata['total_duration'] = files_metadata['total_duration'].fillna(0).astype('int64')
 
-        files_metadata.set_index(pd.Index(files_metadata['first_timestamp'].to_numpy(), dtype='Int64'), inplace=True)
+        files_metadata.set_index(pd.Index(files_metadata['first_timestamp'].to_numpy(), dtype='int64'), inplace=True)
         files_metadata = files_metadata.loc[:, ['filepath', 'total_duration', 'sz_onset']]
 
-        files_metadata = files_metadata.astype({'filepath': str, 'total_duration': 'Int64', 'sz_onset': 'Int64'}).fillna({'total_duration': 0, 'sz_onset': 0})
         try:
             files_metadata = pd.concat((
-                files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series([files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='Int64')),
+                files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series([files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='int64')),
                 ), ignore_index=False) # add empty row at the end for indexing
         except IndexError:
             pass

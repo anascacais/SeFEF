@@ -20,7 +20,7 @@ class Scorer:
         List of metrics to compute. The metrics can be either deterministic or probabilistic and metric names should be the ones from the following list:
         - Deterministic: "Sen" (i.e. sensitivity), "FPR" (i.e. false positive rate), "TiW" (i.e. time in warning), "AUC" (i.e. area under the ROC curve). 
         - Probabilistic: "resolution", "reliability" or "BS" (i.e. Brier score), "skill" or "BSS" (i.e. Brier skill score).    
-    sz_onsets : array-like, shape (#seizures, ), dtype "Int64"
+    sz_onsets : array-like, shape (#seizures, ), dtype "int64"
         Contains the Unix timestamps, in seconds, for the start of each seizure onset.
     forecast_horizon : int
         Forecast horizon in seconds, i.e. time in the future for which the forecasts are valid.  
@@ -68,7 +68,7 @@ class Scorer:
         ---------- 
         forecasts : array-like, shape (#forecasts, ), dtype "float64"
             Contains the predicted probabilites of seizure occurrence for the period with duration equal to the forecast horizon and starting at the timestamps in "timestamps".
-        timestamps : array-like, shape (#forecasts, ), dtype "Int64"
+        timestamps : array-like, shape (#forecasts, ), dtype "int64"
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "forecasts") are valid. 
         threshold : float64, defaults to 0.5
             Probability value to apply as the high-likelihood threshold. 
@@ -76,7 +76,7 @@ class Scorer:
             Method used to determine the number of bins used to compute probabilistic metrics. Available methods are: 
                 - "equal_width": number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.
                 - "equal_frequency": number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.
-        num_bins : Int64, defaults to 10
+        num_bins : int64, defaults to 10
             Number of bins used to compute probabilistic metrics. If None, it is calculated as np.ceil(#forecasts^(1/3)), otherwise "num_bins" is used as the number of bins.
         draw_diagram : bool, defaults to True
             Whether to draw the reliability diagram after computing all required metrics. 
@@ -160,7 +160,7 @@ class Scorer:
         '''Internal method that computes the edges of probability bins so that each bin contains the same number of observations. If not provided, the number of bins is determined by n^(1/3), as proposed in np.histogram_bin_edges.'''
 
         if num_bins is None:
-            num_bins = np.ceil(len(forecasts)**(1/3)).astype('Int64')
+            num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
 
         if binning_method == 'equal_width':
             bin_edges = np.linspace(0, 1, num_bins + 1)

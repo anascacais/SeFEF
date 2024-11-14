@@ -9,7 +9,7 @@ class Forecast:
     ---------- 
     pred_proba : array-like, shape (#samples, ), dtype "float64"
         Contains the probability predicted by the model for each sample belonging to the pre-ictal class. 
-    timestamps :  array-like, shape (#samples, ), dtype "Int64"
+    timestamps :  array-like, shape (#samples, ), dtype "int64"
         Contains the unix timestamps (in seconds) corresponding to the start-time of each sample. 
 
     Methods
@@ -48,7 +48,7 @@ class Forecast:
         -------
         result1 : array-like, shape (#forecasts, ), dtype "float64"
             Contains the predicted probabilites of seizure occurrence for the period with duration "forecast_horizon" and starting at the timestamps in "result2".
-        result2 : array-like, shape (#forecasts, ), dtype "Int64"
+        result2 : array-like, shape (#forecasts, ), dtype "int64"
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "result1") are valid. 
         '''
         origin2param = {'clock-time': 'start_day', 'sample-time': 'start'}
@@ -60,4 +60,4 @@ class Forecast:
         final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin]).max()
         final_proba.index = final_proba.index + pd.Timedelta(f'{forecast_horizon}s')
 
-        return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('Int64') // 10**9).to_numpy()
+        return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('int64') // 10**9).to_numpy()
