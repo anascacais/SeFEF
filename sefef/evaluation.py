@@ -137,7 +137,7 @@ class TimeSeriesCV:
                 test_start_ts = test_end_ts
 
             try:
-                test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() > self.test_duration].tolist()[
+                test_end_ts = after_train_set.index[after_train_set['total_duration'].cumsum() >= self.test_duration].tolist()[
                     0]
                 test_end_ts = self._check_criteria_split(after_train_set, test_end_ts)
                 split_ind_ts += [[train_start_ts, test_start_ts, test_end_ts]]
