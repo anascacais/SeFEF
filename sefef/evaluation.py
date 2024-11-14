@@ -90,19 +90,20 @@ class TimeSeriesCV:
 
         if self.initial_train_duration is None:
             total_recorded_duration = dataset.files_metadata['total_duration'].sum()
+            if total_recorded_duration == 0: raise ValueError(f"Dataset is empty.")
             self.initial_train_duration = (1/3) * total_recorded_duration
 
         if self.test_duration is None:
             self.test_duration = (1/2) * self.initial_train_duration
 
         # Check basic conditions
-        if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
-            raise ValueError(
-                f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
-
         if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
             raise ValueError(
                 f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
+        
+        if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
+            raise ValueError(
+                f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
 
         # Get index for initial split
         initial_cutoff_ts = self._get_cutoff_ts(dataset)
@@ -414,9 +415,11 @@ class Dataset:
         files_metadata.set_index(pd.Index(files_metadata['first_timestamp'].to_numpy(), dtype='Int64'), inplace=True)
         files_metadata = files_metadata.loc[:, ['filepath', 'total_duration', 'sz_onset']]
 
-        files_metadata = files_metadata.fillna({'total_duration': 0, 'sz_onset': 0})
-        files_metadata = pd.concat((
-            files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series([files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='Int64')),
-            ), ignore_index=False) # add empty row at the end for indexing
-
+        files_metadata = files_metadata.astype({'filepath': str, 'total_duration': 'Int64', 'sz_onset': 'Int64'}).fillna({'total_duration': 0, 'sz_onset': 0})
+        try:
+            files_metadata = pd.concat((
+                files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series([files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='Int64')),
+                ), ignore_index=False) # add empty row at the end for indexing
+        except IndexError:
+            pass
         return files_metadata
