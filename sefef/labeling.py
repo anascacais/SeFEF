@@ -1,3 +1,6 @@
+# built-in
+import warnings
+
 # third-party
 import numpy as np
 
@@ -26,6 +29,9 @@ def add_annotations(h5dataset, sz_onsets_ts, preictal_duration=3600, prediction_
     if 'timestamps' not in h5dataset.keys(): 
         raise KeyError('HDF5 file does not contain a "timestamps" dataset, which should contain the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).')
 
+    if 'annotations' in h5dataset.keys():
+        warnings.warn('Dataset already contains annotations. Skipping this step.')
+        return None
 
     timestamps = h5dataset['timestamps'][()]
     labels = np.zeros(timestamps.shape, dtype='bool')
@@ -54,5 +60,9 @@ def add_sz_onsets(h5dataset, sz_onsets_ts):
     -------
     None, but adds a dataset instance to the h5dataset file object.
     '''
+
+    if 'sz_onsets' in h5dataset.keys():
+        warnings.warn('Dataset already contains the onsets of seizures. Skipping this step.')
+        return None
 
     h5dataset.create_dataset("sz_onsets", data=sz_onsets_ts, dtype='int64')

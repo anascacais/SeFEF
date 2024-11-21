@@ -26,12 +26,10 @@ class TestLabeling(unittest.TestCase):
                 add_annotations(h5dataset, self.sz_onsets_ts, self.preictal_duration, self.prediction_latency)
     
     @patch("h5py.File", autospec=True)
-    def test_add_dataset_success(self, mock_h5py_file):
+    def test_add_dataset_usccess(self, mock_h5py_file):
         # Mock HDF5 file behavior
         mock_file = MagicMock()
         mock_file.__enter__.return_value = mock_file
-        #mock_file['timestamps'][()].return_value = self.timestamps
-
         mock_file.keys.return_value = ['timestamps']
         mock_file.__getitem__.side_effect = {'timestamps': np.array(self.timestamps)}.__getitem__
         mock_h5py_file.return_value = mock_file
@@ -46,6 +44,38 @@ class TestLabeling(unittest.TestCase):
         self.assertEqual(args[0], 'annotations')  # Check dataset name
         np.testing.assert_array_equal(kwargs['data'], expected_labeling)   # Check data content
 
+    @patch("h5py.File", autospec=True)
+    def test_labeling_onset_after(self, mock_h5py_file):
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        mock_file.keys.return_value = ['timestamps']
+        mock_file.__getitem__.side_effect = {'timestamps': np.array(self.timestamps)}.__getitem__
+        mock_h5py_file.return_value = mock_file
+        
+        with h5py.File('test_file.h5', 'r+') as h5dataset:
+            add_annotations(h5dataset, [1609459211], self.preictal_duration, self.prediction_latency)
+
+        expected_labeling = [False, False, False, False, False, True, True, True, True, True, False]
+
+        args, kwargs = mock_file.create_dataset.call_args
+        self.assertEqual(args[0], 'annotations') 
+        np.testing.assert_array_equal(kwargs['data'], expected_labeling)
+
+
+    @patch("h5py.File", autospec=True)
+    def test_add_sz_onsets(self, mock_h5py_file):
+        # Mock HDF5 file behavior
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        mock_h5py_file.return_value = mock_file
+        
+        with h5py.File('test_file.h5', 'r+') as h5dataset:
+            add_sz_onsets(h5dataset, self.sz_onsets_ts)
+
+        # Check if the dataset was correctly
+        args, kwargs = mock_file.create_dataset.call_args
+        self.assertEqual(args[0], 'sz_onsets')  # Check dataset name
+        np.testing.assert_array_equal(kwargs['data'], self.sz_onsets_ts)   # Check data content
 
 if __name__ == '__main__':
     unittest.main()
