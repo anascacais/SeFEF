@@ -23,6 +23,9 @@ def add_annotations(h5dataset, sz_onsets_ts, preictal_duration=3600, prediction_
     -------
     None, but adds a dataset instance to the h5dataset file object.
     '''
+    if 'timestamps' not in h5dataset.keys(): 
+        raise KeyError('HDF5 file does not contain a "timestamps" dataset, which should contain the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).')
+
 
     timestamps = h5dataset['timestamps'][()]
     labels = np.zeros(timestamps.shape, dtype='bool')
