@@ -65,18 +65,10 @@ class Forecast:
         pred_proba = pd.DataFrame(self.pred_proba, index=pd.to_datetime(
             self.timestamps, unit='s', utc=True), columns=['pred_proba'])
         smooth_proba = pred_proba.resample(f'{smooth_win}s', origin=origin2param[origin], label='right').mean()
-
-        # sampling_period = pred_proba.index[1] - pred_proba.index[0]
-        # smooth_proba.index = smooth_proba.index - (pd.Timedelta(f'{smooth_win}s') - sampling_period)
-        
-        if origin == 'clock-time':
-            pass
-            # smooth_proba.index = smooth_proba.index - pd.Timedelta(pred_proba.index[1] - pred_proba.index[0])
-        else:
-            smooth_proba.index = smooth_proba.index - pd.Timedelta(f'{smooth_win}s')
+        smooth_proba.index = smooth_proba.index - pd.Timedelta(f'{smooth_win}s')
 
         final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin], label='right').max()
-        # final_proba.index = final_proba.index + pd.Timedelta(f'{forecast_horizon}s')
-        ## remove forecasts for the future (without complete forecasts)
+        # remove forecasts with insufficient predictions (last)
+        final_proba = final_proba.iloc[:((pred_proba.index[-1] - pred_proba.index[0]) // pd.Timedelta(f'{forecast_horizon}s'))]
 
         return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('int64') // 10**9).to_numpy()
