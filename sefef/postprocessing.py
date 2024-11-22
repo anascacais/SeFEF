@@ -1,6 +1,6 @@
 # third-party
 import pandas as pd
-
+import numpy as np
 
 class Forecast:
     ''' Stores the forecasts made by the model and processes them.
@@ -26,21 +26,24 @@ class Forecast:
     '''
 
     def __init__(self, pred_proba, timestamps):
-        self.pred_proba = pred_proba
-        self.timestamps = timestamps
+        self.pred_proba = np.array(pred_proba)
+        self.timestamps = np.array(timestamps)
+        assert self.pred_proba.shape == self.timestamps.shape, f'The provided timestamps and predicted probabilities do not have the same shape {self.timestamps.shape} vs {self.pred_proba.shape}.'
 
     def append(self, pred_proba, timestamps):
         pass
 
-    def postprocess(self, forecast_horizon, smooth_win, origin='clock-time'):
-        ''' Applies post-processing methodology to the predictions stored in "pred_proba". For each time period with duration equal to "forecast_horizon", mean predicted probabilities are calculated for groups of consecutive samples (with a window of duration "smooth_win", in seconds), without overlap, and the maximum across the full period is obtained.
+    def postprocess(self, forecast_horizon, smooth_win, smooth_sliding=False, origin='clock-time'):
+        ''' Applies post-processing methodology to the predictions stored in "pred_proba". For each time period with duration equal to "forecast_horizon", mean predicted probabilities are calculated for groups of consecutive samples (with a window of duration "smooth_win", in seconds), with or without overlap, and the maximum across the full period is obtained.
 
         Parameters
         ---------- 
         forecast_horizon : int
             Forecast horizon in seconds, i.e. time in the future for which the forecasts will be issued.  
         smooth_win : int
-            Duration of window, in seconds, used to smooth the predicted probabilities (without overlap). 
+            Duration of window, in seconds, used to smooth the predicted probabilities. If "smooth_sliding" is set to False, the duration of this variable should sum up to "forecast_horizon".
+        smooth_sliding : bool, defaults to False
+            Whether to use a sliding-window approach during smoothing (with a step of 1 sample), or to use non-overlaping smoothing windows. When True, not yet implemented.
         origin : str, defaults to "clock-time"
             Determines if the forecasts are issued at clock-time (e.g. at the start of each hour) or according to the start-time of the first sample. Options are "clock-time" and "sample-time", respectively. 
 
@@ -51,13 +54,29 @@ class Forecast:
         result2 : array-like, shape (#forecasts, ), dtype "int64"
             Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "result1") are valid. 
         '''
+
+        if not smooth_sliding:
+            assert forecast_horizon % smooth_win == 0, 'With "smooth_sliding"=False, the duration of "smooth_win" should sum up to "forecast_horizon".'
+        else:
+            raise NotImplementedError
+
         origin2param = {'clock-time': 'start_day', 'sample-time': 'start'}
 
         pred_proba = pd.DataFrame(self.pred_proba, index=pd.to_datetime(
             self.timestamps, unit='s', utc=True), columns=['pred_proba'])
-        smooth_proba = pred_proba.resample(f'{smooth_win}s', origin=origin2param[origin]).mean()
+        smooth_proba = pred_proba.resample(f'{smooth_win}s', origin=origin2param[origin], label='right').mean()
 
-        final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin]).max()
-        final_proba.index = final_proba.index + pd.Timedelta(f'{forecast_horizon}s')
+        # sampling_period = pred_proba.index[1] - pred_proba.index[0]
+        # smooth_proba.index = smooth_proba.index - (pd.Timedelta(f'{smooth_win}s') - sampling_period)
+        
+        if origin == 'clock-time':
+            pass
+            # smooth_proba.index = smooth_proba.index - pd.Timedelta(pred_proba.index[1] - pred_proba.index[0])
+        else:
+            smooth_proba.index = smooth_proba.index - pd.Timedelta(f'{smooth_win}s')
+
+        final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin], label='right').max()
+        # final_proba.index = final_proba.index + pd.Timedelta(f'{forecast_horizon}s')
+        ## remove forecasts for the future (without complete forecasts)
 
         return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('int64') // 10**9).to_numpy()

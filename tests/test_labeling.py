@@ -26,7 +26,7 @@ class TestLabeling(unittest.TestCase):
                 add_annotations(h5dataset, self.sz_onsets_ts, self.preictal_duration, self.prediction_latency)
     
     @patch("h5py.File", autospec=True)
-    def test_add_dataset_usccess(self, mock_h5py_file):
+    def test_add_dataset_success(self, mock_h5py_file):
         # Mock HDF5 file behavior
         mock_file = MagicMock()
         mock_file.__enter__.return_value = mock_file
