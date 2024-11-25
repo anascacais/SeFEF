@@ -52,7 +52,7 @@ class Scorer:
 
     def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='prior_prob', hist_prior_prob=None):
         self.metrics2compute = metrics2compute
-        self.sz_onsets = sz_onsets
+        self.sz_onsets = np.array(sz_onsets)
         self.forecast_horizon = forecast_horizon
         self.reference_method = reference_method
         self.hist_prior_prob = hist_prior_prob
