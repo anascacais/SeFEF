@@ -9,12 +9,12 @@ class TestScorer(unittest.TestCase):
         self.sz_onsets = [1609459860]
         self.forecast_horizon = 6*60
         self.reference_method = 'prior_prob'
-        self.hist_prior_prob = 1/4
+        self.hist_prior_prob = 2/3
         self.forecasts_sample_time = np.array([1, 1, 0], dtype='float64')
         self.forecasts_clock_time = np.array([0.5, 1, 0], dtype='float64')
         self.timestamps = np.arange(1609459620, 1609460460, self.forecast_horizon)
         self.binning_method = 'equal_frequency'
-        self.num_bins = 10
+        self.num_bins = 2
 
         self.scorer = Scorer([], self.sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
 
@@ -100,29 +100,44 @@ class TestScorer(unittest.TestCase):
         self.assertTrue(performance['AUC-TiW'] == expected_performance)
 
 
-    # def test_resolution(self):
-    #     metrics2compute = ['resolution']
-    #     scorer = Scorer(metrics2compute, self.sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
-    #     performance = scorer.compute_metrics(self.forecasts, self.timestamps, binning_method=self.binning_method, num_bins=self.num_bins, draw_diagram=False)
+    def test_resolution_equal_width(self):
+        metrics2compute = ['resolution']
+        sz_onsets = [1609460040, 1609460400]
+        forecasts = [0.2, 0.6, 0.8]
+        scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
+        performance = scorer.compute_metrics(forecasts, self.timestamps, binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+        expected_performance = ((self.hist_prior_prob)**2 + 2*(1-self.hist_prior_prob)**2) / 3
+        self.assertTrue(performance['resolution'] == expected_performance)
+    
+
+    def test_reliability_equal_width(self):
+        metrics2compute = ['reliability']
+        sz_onsets = [1609460040, 1609460400]
+        forecasts = [0.2, 0.6, 0.8]
+        scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
+        performance = scorer.compute_metrics(forecasts, self.timestamps, binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+        expected_performance = (0.2**2 + 2*(0.7-1)**2) / 3
+        self.assertTrue(performance['reliability'] == expected_performance)
 
 
-    # def test_reliability(self):
-    #     metrics2compute = ['reliability']
-    #     scorer = Scorer(metrics2compute, self.sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
-    #     performance = scorer.compute_metrics(self.forecasts, self.timestamps, binning_method=self.binning_method, num_bins=self.num_bins, draw_diagram=False)
+    def test_brier_score_equal_width(self):
+        metrics2compute = ['BS']
+        sz_onsets = [1609460040, 1609460400]
+        forecasts = [0.2, 0.6, 0.8]
+        scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
+        performance = scorer.compute_metrics(forecasts, self.timestamps, binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+        expected_performance =  (0.2**2 + (0.6-1)**2 + (0.8-1)**2) / 3
+        self.assertTrue(performance['BS'] == expected_performance)
+    
 
-
-    # def test_brier_score(self):
-    #     metrics2compute = ['BS']
-    #     scorer = Scorer(metrics2compute, self.sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
-    #     performance = scorer.compute_metrics(self.forecasts, self.timestamps, binning_method=self.binning_method, num_bins=self.num_bins, draw_diagram=False)
-
-
-    # def test_brier_skill_score(self):
-    #     metrics2compute = ['BSS']
-    #     scorer = Scorer(metrics2compute, self.sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
-    #     performance = scorer.compute_metrics(self.forecasts, self.timestamps, binning_method=self.binning_method, num_bins=self.num_bins, draw_diagram=False)
-
+    def test_brier_skill_score_equal_width(self):
+        metrics2compute = ['BSS']
+        sz_onsets = [1609460040, 1609460400]
+        forecasts = [0.2, 0.6, 0.8]
+        scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
+        performance = scorer.compute_metrics(forecasts, self.timestamps, binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+        expected_performance = 1 - 0.08 / ((self.hist_prior_prob**2 + (self.hist_prior_prob-1)**2 + (self.hist_prior_prob-1)**2) / 3)
+        self.assertTrue(performance['BSS'] == expected_performance)
 
 
 if __name__ == '__main__':
