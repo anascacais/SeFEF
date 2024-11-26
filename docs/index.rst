@@ -1,5 +1,11 @@
-.Welcome to ``SeFEF``
+Welcome to ``SeFEF``
 ======================
+
+.. image:: logo/sefef-logo.png
+    :align: center
+    :alt: SeFEF logo
+
+|
 
 ``SeFEF`` is a Seizure Forecast Evaluation Framework written in Python.
 The framework standardizes the development, evaluation, and reporting of individualized algorithms for seizure likelihood forecast. 
@@ -7,10 +13,10 @@ The framework standardizes the development, evaluation, and reporting of individ
 
 Highlights:
 
-- Evaluation: implements time series cross-validation.
-- Labeling: automatically labels samples according to the desired pre-ictal duration and prediction latency.
-- Postprocessing: processes individual predicted probabilities into a unified forecast according to the desired forecast horizon.
-- Scoring: computes both deterministic and probvabilistic metrics according to the horizon of the forecast.  
+- ``evaluation`` module: implements time series cross-validation.
+- ``labeling`` module: automatically labels samples according to the desired pre-ictal duration and prediction latency.
+- ``postprocessing`` module: processes individual predicted probabilities into a unified forecast according to the desired forecast horizon.
+- ``scoring`` module: computes both deterministic and probabilistic metrics according to the horizon of the forecast.  
 
 Contents:
 
