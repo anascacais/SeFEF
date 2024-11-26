@@ -155,7 +155,8 @@ class Scorer:
         sen = np.vectorize(self._compute_Sen, excluded=['forecasts'])(tp=tp, fp=fp, fn=fn, forecasts=forecasts)
         tiw = np.vectorize(self._compute_TiW, excluded=['forecasts'])(tp=tp, fp=fp, fn=fn, forecasts=forecasts)
 
-        return sklearn.metrics.auc(tiw, sen)
+        # add point (0, 0) to curve since the auc() function computes the area strictly based on the given points
+        return sklearn.metrics.auc(np.append(tiw, 0.), np.append(sen, 0.))
 
     # Probabilistic metrics
 
