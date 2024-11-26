@@ -208,6 +208,32 @@ class Scorer:
         '''Internal method that computes uncertainty. "y_avg": observed relative frequency of true events for all forecasts'''
         y_avg = len(self.sz_onsets) / len(forecasts)
         return y_avg * (1-y_avg)
+    
+    def _compute_WBV(self, forecasts, timestamps, bin_edges):
+        '''Internal method that computes within-bin variance.'''
+        binned_data = np.digitize(forecasts, bin_edges, right=True)
+        wbv = []
+
+        for k in np.unique(binned_data):
+            binned_indx = np.where(binned_data == k)
+            wbv += [np.sum((forecasts[binned_indx] - np.mean(forecasts[binned_indx]))**2)]
+        
+        return np.sum(wbv) * (1/len(forecasts))
+ 
+    def _compute_WBC(self, forecasts, timestamps, bin_edges):
+        '''Internal method that computes within-bin covariance.'''
+        binned_data = np.digitize(forecasts, bin_edges, right=True)
+        wbc = []
+
+        for k in np.unique(binned_data):
+            binned_indx = np.where(binned_data == k)
+            timestamps_start_forecast = timestamps[binned_indx]
+            timestamps_end_forecast = timestamps_start_forecast + self.forecast_horizon - 1
+            y_ki = np.any((self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]), axis=0)
+            wbc += [np.sum((y_ki -  np.mean(y_ki)) * (forecasts[binned_indx] - np.mean(forecasts[binned_indx])))]
+        
+        return np.sum(wbc) * (2/len(forecasts))
+
 
     def _compute_BS(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the Brier score, through the decomposition proposed in [Murphy1973].'''
@@ -223,8 +249,10 @@ class Scorer:
             resolution = self._compute_resolution(forecasts, timestamps, bin_edges)
 
         uncertainty = self._compute_uncertainty(forecasts, timestamps, bin_edges)
+        wbv = self._compute_WBV(forecasts, timestamps, bin_edges)
+        wbc = self._compute_WBC(forecasts, timestamps, bin_edges)
 
-        return (uncertainty + reliability - resolution)
+        return (reliability - resolution + uncertainty + wbv - wbc)
 
     def _compute_skill(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the Brier skill score against a reference forecast. Simplification of BS of reference forecast as described in [Mason2004].'''
