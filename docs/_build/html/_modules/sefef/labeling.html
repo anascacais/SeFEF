@@ -1,0 +1,186 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sefef.labeling &mdash; SeFEF 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html">
+            
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../sefef.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">SeFEF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sefef.labeling</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sefef.labeling</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">sefef.labeling</span>
+<span class="sd">--------------</span>
+
+<span class="sd">This module contains functions to automatically label samples according to the desired pre-ictal duration and prediction latency.</span>
+
+<span class="sd">:copyright: (c) 2024 by Ana Sofia Carmo</span>
+<span class="sd">:license: MIT License, see LICENSE for more details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="c1"># built-in</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="c1"># third-party</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<div class="viewcode-block" id="add_annotations">
+<a class="viewcode-back" href="../../sefef.html#sefef.labeling.add_annotations">[docs]</a>
+<span class="k">def</span> <span class="nf">add_annotations</span><span class="p">(</span><span class="n">h5dataset</span><span class="p">,</span> <span class="n">sz_onsets_ts</span><span class="p">,</span> <span class="n">preictal_duration</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span> <span class="n">prediction_latency</span><span class="o">=</span><span class="mi">600</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; Add &quot;annotations&quot;, with shape (#samples, ) and dtype &quot;bool&quot;, to HDF5 file object according to the variables &quot;preictal_duration&quot; and &quot;prediction_latency&quot;. Annotations are either 0 (inter-ictal), or 1 (pre-ictal).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ---------- </span>
+<span class="sd">    h5dataset : HDF5 file</span>
+<span class="sd">        HDF5 file object with the following datasets:</span>
+<span class="sd">        - &quot;data&quot;: each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels). </span>
+<span class="sd">        - &quot;timestamps&quot;: contains the start timestamp (unix in seconds) of each sample in the &quot;data&quot; dataset, with shape (#samples, ).</span>
+<span class="sd">        - &quot;sz_onsets&quot;: contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). (optional)</span>
+<span class="sd">    sz_onsets_ts : array-like, shape (#sz onsets, )</span>
+<span class="sd">        Contains the unix timestamps (in seconds) of the onsts of seizures. </span>
+<span class="sd">    preictal_duration : int, defaults to 3600 (60min)</span>
+<span class="sd">        Duration of the period (in seconds) that will be labeled as preictal, i.e. that we expect to contain useful information for the forecast</span>
+<span class="sd">    prediction_latency : int, defaults to 600 (10min)</span>
+<span class="sd">        Latency (in seconds) of the preictal period with regards to seizure onset.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None, but adds a dataset instance to the h5dataset file object.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="s1">&#39;timestamps&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">h5dataset</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span> 
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;HDF5 file does not contain a &quot;timestamps&quot; dataset, which should contain the start timestamp (unix in seconds) of each sample in the &quot;data&quot; dataset, with shape (#samples, ).&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s1">&#39;annotations&#39;</span> <span class="ow">in</span> <span class="n">h5dataset</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Dataset already contains annotations. Skipping this step.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">timestamps</span> <span class="o">=</span> <span class="n">h5dataset</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">][()]</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">timestamps</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;bool&#39;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">sz_ts</span> <span class="ow">in</span> <span class="n">sz_onsets_ts</span><span class="p">:</span>
+        <span class="n">labels</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">timestamps</span> <span class="o">&gt;=</span> <span class="n">sz_ts</span><span class="o">-</span><span class="p">(</span><span class="n">preictal_duration</span> <span class="o">+</span>
+                        <span class="n">prediction_latency</span><span class="p">),</span> <span class="n">timestamps</span> <span class="o">&lt;</span> <span class="n">sz_ts</span><span class="o">-</span><span class="n">prediction_latency</span><span class="p">))]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">h5dataset</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;annotations&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;bool&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_sz_onsets">
+<a class="viewcode-back" href="../../sefef.html#sefef.labeling.add_sz_onsets">[docs]</a>
+<span class="k">def</span> <span class="nf">add_sz_onsets</span><span class="p">(</span><span class="n">h5dataset</span><span class="p">,</span> <span class="n">sz_onsets_ts</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; Add &quot;sz_onsets&quot;, with shape (#seizures, ) and dtype &quot;int64&quot;, to HDF5 file object, corresponding to the Unix timestamps of each seizure onset. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ---------- </span>
+<span class="sd">    h5dataset : HDF5 file</span>
+<span class="sd">        HDF5 file object with the following datasets:</span>
+<span class="sd">        - &quot;data&quot;: each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels). </span>
+<span class="sd">        - &quot;timestamps&quot;: contains the start timestamp (unix in seconds) of each sample in the &quot;data&quot; dataset, with shape (#samples, ).</span>
+<span class="sd">        - &quot;annotations&quot;: contains the annotations (aka labels) of each sample. (optional)</span>
+<span class="sd">    sz_onsets_ts : array-like, shape (#sz onsets, )</span>
+<span class="sd">        Contains the unix timestamps (in seconds) of the onsts of seizures. </span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None, but adds a dataset instance to the h5dataset file object.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="s1">&#39;sz_onsets&#39;</span> <span class="ow">in</span> <span class="n">h5dataset</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Dataset already contains the onsets of seizures. Skipping this step.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">h5dataset</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;sz_onsets&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">sz_onsets_ts</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int64&#39;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Ana Sofia Carmo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

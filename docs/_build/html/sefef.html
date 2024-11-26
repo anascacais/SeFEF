@@ -1,0 +1,728 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Reference &mdash; SeFEF 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title=".Welcome to SeFEF" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#modules">Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sefef-evaluation">sefef.evaluation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.evaluation.Dataset"><code class="docutils literal notranslate"><span class="pre">Dataset</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.Dataset.files_metadata"><code class="docutils literal notranslate"><span class="pre">Dataset.files_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.Dataset.sz_onsets"><code class="docutils literal notranslate"><span class="pre">Dataset.sz_onsets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.Dataset.sampling_frequency"><code class="docutils literal notranslate"><span class="pre">Dataset.sampling_frequency</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.n_min_events_train"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.n_min_events_train</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.n_min_events_test"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.n_min_events_test</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.initial_train_duration"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.initial_train_duration</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.test_duration"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.test_duration</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.method"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.method</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.n_folds"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.n_folds</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.split_ind_ts"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.split_ind_ts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.iterate"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.iterate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.plot"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.evaluation.TimeSeriesCV.split"><code class="docutils literal notranslate"><span class="pre">TimeSeriesCV.split()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef-labeling">sefef.labeling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.labeling.add_annotations"><code class="docutils literal notranslate"><span class="pre">add_annotations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.labeling.add_sz_onsets"><code class="docutils literal notranslate"><span class="pre">add_sz_onsets()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef-postprocessing">sefef.postprocessing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.postprocessing.Forecast"><code class="docutils literal notranslate"><span class="pre">Forecast</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.postprocessing.Forecast.pred_proba"><code class="docutils literal notranslate"><span class="pre">Forecast.pred_proba</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.postprocessing.Forecast.timestamps"><code class="docutils literal notranslate"><span class="pre">Forecast.timestamps</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.postprocessing.Forecast.append"><code class="docutils literal notranslate"><span class="pre">Forecast.append()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.postprocessing.Forecast.postprocess"><code class="docutils literal notranslate"><span class="pre">Forecast.postprocess()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef-scoring">sefef.scoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.scoring.Scorer"><code class="docutils literal notranslate"><span class="pre">Scorer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.metrics2compute"><code class="docutils literal notranslate"><span class="pre">Scorer.metrics2compute</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.sz_onsets"><code class="docutils literal notranslate"><span class="pre">Scorer.sz_onsets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.forecast_horizon"><code class="docutils literal notranslate"><span class="pre">Scorer.forecast_horizon</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.performance"><code class="docutils literal notranslate"><span class="pre">Scorer.performance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.reference_method"><code class="docutils literal notranslate"><span class="pre">Scorer.reference_method</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.hist_prior_prob"><code class="docutils literal notranslate"><span class="pre">Scorer.hist_prior_prob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sefef.scoring.Scorer.compute_metrics"><code class="docutils literal notranslate"><span class="pre">Scorer.compute_metrics()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef-visualization">sefef.visualization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sefef.visualization.hex_to_rgba"><code class="docutils literal notranslate"><span class="pre">hex_to_rgba()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SeFEF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">API Reference</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="api-reference">
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading"></a></h1>
+<p>This part of the documentation details the complete <code class="docutils literal notranslate"><span class="pre">SeFEF</span></code> API.</p>
+<section id="modules">
+<h2>Modules<a class="headerlink" href="#modules" title="Link to this heading"></a></h2>
+<nav class="contents local" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#sefef-evaluation" id="id3">sefef.evaluation</a></p></li>
+<li><p><a class="reference internal" href="#sefef-labeling" id="id4">sefef.labeling</a></p></li>
+<li><p><a class="reference internal" href="#sefef-postprocessing" id="id5">sefef.postprocessing</a></p></li>
+<li><p><a class="reference internal" href="#sefef-scoring" id="id6">sefef.scoring</a></p></li>
+<li><p><a class="reference internal" href="#sefef-visualization" id="id7">sefef.visualization</a></p></li>
+</ul>
+</nav>
+<section id="sefef-evaluation">
+<span id="module-sefef.evaluation"></span><h3><a class="toc-backref" href="#id3" role="doc-backlink">sefef.evaluation</a><a class="headerlink" href="#sefef-evaluation" title="Link to this heading"></a></h3>
+<p>This module contains functions to implement time-series cross validation (TSCV).</p>
+<dl class="field-list simple">
+<dt class="field-odd">copyright<span class="colon">:</span></dt>
+<dd class="field-odd"><ol class="loweralpha simple" start="3">
+<li><p>2024 by Ana Sofia Carmo</p></li>
+</ol>
+</dd>
+<dt class="field-even">license<span class="colon">:</span></dt>
+<dd class="field-even"><p>MIT License, see LICENSE for more details.</p>
+</dd>
+</dl>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="sefef.evaluation.Dataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sefef.evaluation.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files_metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sz_onsets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_frequency</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/evaluation.html#Dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.evaluation.Dataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Create a Dataset with metadata on the data that will be used for training and testing</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.Dataset.files_metadata">
+<span class="sig-name descname"><span class="pre">files_metadata</span></span><a class="headerlink" href="#sefef.evaluation.Dataset.files_metadata" title="Link to this definition"></a></dt>
+<dd><p>Input DataFrame with the following columns:
+- ‘filepath’ (str): Path to each file containing data.
+- ‘first_timestamp’ (int64): The Unix-time timestamp (in seconds) of the first sample of each file.
+- ‘total_duration’ (int64): Total duration of file in seconds (equivalent to #samples * sampling_frequency)
+It is expected that data within each file is non-overlapping in time and that there are no time gaps between samples in the file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.Dataset.sz_onsets">
+<span class="sig-name descname"><span class="pre">sz_onsets</span></span><a class="headerlink" href="#sefef.evaluation.Dataset.sz_onsets" title="Link to this definition"></a></dt>
+<dd><p>Contains the Unix-time timestamps (in seconds) corresponding to the onsets of seizures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.Dataset.sampling_frequency">
+<span class="sig-name descname"><span class="pre">sampling_frequency</span></span><a class="headerlink" href="#sefef.evaluation.Dataset.sampling_frequency" title="Link to this definition"></a></dt>
+<dd><p>Frequency at which the data is stored in each file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sefef.evaluation.</span></span><span class="sig-name descname"><span class="pre">TimeSeriesCV</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_min_events_train</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_min_events_test</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_train_duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/evaluation.html#TimeSeriesCV"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Implements time series cross validation (TSCV).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.n_min_events_train">
+<span class="sig-name descname"><span class="pre">n_min_events_train</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.n_min_events_train" title="Link to this definition"></a></dt>
+<dd><p>Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int, defaults to 3</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.n_min_events_test">
+<span class="sig-name descname"><span class="pre">n_min_events_test</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.n_min_events_test" title="Link to this definition"></a></dt>
+<dd><p>Minimum number of lead seizures to include in the test set. Should guarantee at least one lead seizure is left for testing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int, defaults to 1</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.initial_train_duration">
+<span class="sig-name descname"><span class="pre">initial_train_duration</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.initial_train_duration" title="Link to this definition"></a></dt>
+<dd><p>Set duration of train for initial split (in seconds).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int, defaults to 1/3 of total recorded duration</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.test_duration">
+<span class="sig-name descname"><span class="pre">test_duration</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.test_duration" title="Link to this definition"></a></dt>
+<dd><p>Set duration of test (in seconds).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int, defaults to 1/2 of ‘initial_train_duration’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.method">
+<span class="sig-name descname"><span class="pre">method</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.method" title="Link to this definition"></a></dt>
+<dd><p>Method for TSCV - can be either ‘expanding’ or ‘sliding’. Only ‘expanding’ is implemented atm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.n_folds">
+<span class="sig-name descname"><span class="pre">n_folds</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.n_folds" title="Link to this definition"></a></dt>
+<dd><p>Number of folds for the TSCV, determined according to the attributes set by the user and available data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.split_ind_ts">
+<span class="sig-name descname"><span class="pre">split_ind_ts</span></span><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.split_ind_ts" title="Link to this definition"></a></dt>
+<dd><p>Contains split timestamp indices (train_start_ts, test_start_ts, test_end_ts) for each fold. Is initiated as None and populated during ‘split’ method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like, shape (n_folds, 3)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">split(dataset,</span> <span class="pre">iteratively)</span> <span class="pre">:</span></span></dt>
+<dd><p>Get timestamp indices to split data for time series cross-validation.
+- The train set can be obtained by metadata.loc[train_start_ts : test_start_ts].
+- The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">plot(dataset)</span> <span class="pre">:</span></span></dt>
+<dd><p>Plots the TSCV folds with the available data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">iterate()</span> <span class="pre">:</span></span></dt>
+<dd><p>Iterates over the TSCV folds and at each iteration returns a train set and a test set.</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError :</strong> – Raised whenever TSCV is not passible to be performed under the attributes set by the user and available data.</p></li>
+<li><p><strong>AttributeError :</strong> – Raised when ‘plot’ is called before ‘split’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.iterate">
+<span class="sig-name descname"><span class="pre">iterate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5dataset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/evaluation.html#TimeSeriesCV.iterate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.iterate" title="Link to this definition"></a></dt>
+<dd><p>Iterates over the TSCV folds and at each iteration returns a train set and a test set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>h5dataset</strong> (<em>HDF5 file</em>) – HDF5 file object with the following datasets:
+- “data”: each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels)
+- “timestamps”: contains the start timestamp (unix in seconds) of each sample in the “data” dataset, with shape (#samples, ).
+- “annotations”: contains the labels (0: interictal, 1: preictal) for each sample in the “data” dataset, with shape (#samples, ).
+- “sz_onsets”: contains the Unix timestamps of the onsets of seizures (#sz_onsets, ).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p><em>tuple</em> –</p>
+<ul class="simple">
+<li><p>((train_data, train_annotations, train_timestamps), (test_data, test_sz_onsets, test_timestamps))</p></li>
+<li><dl class="simple">
+<dt>Where:</dt><dd><ul>
+<li><p>”[]_data”: A slice of “h5dataset[“data”]”, with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype “float32”.</p></li>
+<li><p>”[]_annotations”: A slice of “h5dataset[“annotations”]”, with shape (#samples, ) and dtype “bool”.</p></li>
+<li><p>”[]_sz_onsets”: A slice of “h5dataset[“sz_onsets”]”, with shape (#sz onsets, ) and dtype “int64”.</p></li>
+<li><p>”[]_timestamps”: A slice of “h5dataset[“timestamps”]”, with shape (#samples, ) and dtype “int64”.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/evaluation.html#TimeSeriesCV.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.plot" title="Link to this definition"></a></dt>
+<dd><p>Plots the TSCV folds with the available data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dataset</strong> (<a class="reference internal" href="#sefef.evaluation.Dataset" title="sefef.evaluation.Dataset"><em>Dataset</em></a>) – Instance of Dataset.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sefef.evaluation.TimeSeriesCV.split">
+<span class="sig-name descname"><span class="pre">split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iteratively</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/evaluation.html#TimeSeriesCV.split"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.evaluation.TimeSeriesCV.split" title="Link to this definition"></a></dt>
+<dd><p>Get timestamp indices to split data for time series cross-validation.
+- The train set would be given by metadata.loc[train_start_ts : test_start_ts].
+- The test set would be given by metadata.loc[test_start_ts : test_end_ts].</p>
+<section id="parameters">
+<h3>Parameters:<a class="headerlink" href="#parameters" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt>dataset<span class="classifier">Dataset</span></dt><dd><p>Instance of Dataset.</p>
+</dd>
+<dt>iteratively<span class="classifier">bool, defaults to False</span></dt><dd><p>If the split is meant to return the timestamp indices for each fold iteratively (True) or to simply update ‘split_ind_ts’ (False).</p>
+</dd>
+<dt>plot<span class="classifier">bool, defaults to False</span></dt><dd><p>If a diagram illustrating the TSCV should be shown at the end. ‘iteratively’ cannot be set to True</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h3>Returns:<a class="headerlink" href="#returns" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt>train_start_ts<span class="classifier">int</span></dt><dd><p>Timestamp index for the start of the train set.</p>
+</dd>
+<dt>test_start_ts<span class="classifier">int</span></dt><dd><p>Timestamp index for the start of the test set (and end of train set).</p>
+</dd>
+<dt>test_end_ts<span class="classifier">int</span></dt><dd><p>Timestamp index for the end of the test set.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</dd></dl>
+
+<section id="sefef-labeling">
+<span id="module-sefef.labeling"></span><h3><a class="toc-backref" href="#id4" role="doc-backlink">sefef.labeling</a><a class="headerlink" href="#sefef-labeling" title="Link to this heading"></a></h3>
+<p>This module contains functions to automatically label samples according to the desired pre-ictal duration and prediction latency.</p>
+<dl class="field-list simple">
+<dt class="field-odd">copyright<span class="colon">:</span></dt>
+<dd class="field-odd"><ol class="loweralpha simple" start="3">
+<li><p>2024 by Ana Sofia Carmo</p></li>
+</ol>
+</dd>
+<dt class="field-even">license<span class="colon">:</span></dt>
+<dd class="field-even"><p>MIT License, see LICENSE for more details.</p>
+</dd>
+</dl>
+</section>
+<dl class="py function">
+<dt class="sig sig-object py" id="sefef.labeling.add_annotations">
+<span class="sig-prename descclassname"><span class="pre">sefef.labeling.</span></span><span class="sig-name descname"><span class="pre">add_annotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sz_onsets_ts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preictal_duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3600</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prediction_latency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">600</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/labeling.html#add_annotations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.labeling.add_annotations" title="Link to this definition"></a></dt>
+<dd><p>Add “annotations”, with shape (#samples, ) and dtype “bool”, to HDF5 file object according to the variables “preictal_duration” and “prediction_latency”. Annotations are either 0 (inter-ictal), or 1 (pre-ictal).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5dataset</strong> (<em>HDF5 file</em>) – HDF5 file object with the following datasets:
+- “data”: each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels).
+- “timestamps”: contains the start timestamp (unix in seconds) of each sample in the “data” dataset, with shape (#samples, ).
+- “sz_onsets”: contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). (optional)</p></li>
+<li><p><strong>sz_onsets_ts</strong> (<em>array-like</em><em>, </em><em>shape</em><em> (</em><em>#sz onsets</em><em>, </em><em>)</em>) – Contains the unix timestamps (in seconds) of the onsts of seizures.</p></li>
+<li><p><strong>preictal_duration</strong> (<em>int</em><em>, </em><em>defaults to 3600</em><em> (</em><em>60min</em><em>)</em>) – Duration of the period (in seconds) that will be labeled as preictal, i.e. that we expect to contain useful information for the forecast</p></li>
+<li><p><strong>prediction_latency</strong> (<em>int</em><em>, </em><em>defaults to 600</em><em> (</em><em>10min</em><em>)</em>) – Latency (in seconds) of the preictal period with regards to seizure onset.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None, but adds a dataset instance to the h5dataset file object.</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="sefef.labeling.add_sz_onsets">
+<span class="sig-prename descclassname"><span class="pre">sefef.labeling.</span></span><span class="sig-name descname"><span class="pre">add_sz_onsets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sz_onsets_ts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/labeling.html#add_sz_onsets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.labeling.add_sz_onsets" title="Link to this definition"></a></dt>
+<dd><p>Add “sz_onsets”, with shape (#seizures, ) and dtype “int64”, to HDF5 file object, corresponding to the Unix timestamps of each seizure onset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>h5dataset</strong> (<em>HDF5 file</em>) – HDF5 file object with the following datasets:
+- “data”: each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels).
+- “timestamps”: contains the start timestamp (unix in seconds) of each sample in the “data” dataset, with shape (#samples, ).
+- “annotations”: contains the annotations (aka labels) of each sample. (optional)</p></li>
+<li><p><strong>sz_onsets_ts</strong> (<em>array-like</em><em>, </em><em>shape</em><em> (</em><em>#sz onsets</em><em>, </em><em>)</em>) – Contains the unix timestamps (in seconds) of the onsts of seizures.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None, but adds a dataset instance to the h5dataset file object.</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<section id="sefef-postprocessing">
+<span id="module-sefef.postprocessing"></span><h3><a class="toc-backref" href="#id5" role="doc-backlink">sefef.postprocessing</a><a class="headerlink" href="#sefef-postprocessing" title="Link to this heading"></a></h3>
+<p>This module contains functions to process individual predicted probabilities into a unified forecast according to the desired forecast horizon.
+Author: Ana Sofia Carmo</p>
+<dl class="field-list simple">
+<dt class="field-odd">copyright<span class="colon">:</span></dt>
+<dd class="field-odd"><ol class="loweralpha simple" start="3">
+<li><p>2024 by Ana Sofia Carmo</p></li>
+</ol>
+</dd>
+<dt class="field-even">license<span class="colon">:</span></dt>
+<dd class="field-even"><p>MIT License, see LICENSE for more details.</p>
+</dd>
+</dl>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="sefef.postprocessing.Forecast">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sefef.postprocessing.</span></span><span class="sig-name descname"><span class="pre">Forecast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred_proba</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamps</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/postprocessing.html#Forecast"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.postprocessing.Forecast" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Stores the forecasts made by the model and processes them.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.postprocessing.Forecast.pred_proba">
+<span class="sig-name descname"><span class="pre">pred_proba</span></span><a class="headerlink" href="#sefef.postprocessing.Forecast.pred_proba" title="Link to this definition"></a></dt>
+<dd><p>Contains the probability predicted by the model for each sample belonging to the pre-ictal class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like, shape (#samples, ), dtype “float64”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.postprocessing.Forecast.timestamps">
+<span class="sig-name descname"><span class="pre">timestamps</span></span><a class="headerlink" href="#sefef.postprocessing.Forecast.timestamps" title="Link to this definition"></a></dt>
+<dd><p>Contains the unix timestamps (in seconds) corresponding to the start-time of each sample.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like, shape (#samples, ), dtype “int64”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">append(pred_proba,</span> <span class="pre">timestamps)</span> <span class="pre">:</span></span></dt>
+<dd><p>Appends new predicted probabilities to the ones already in the Forecast object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">postprocess(forecast_horizon)</span> <span class="pre">:</span></span></dt>
+<dd><p>Applies postprocessing methodology to the predictions stored in “pred_proba”, according to “forecast horizon” (in seconds). Returns an array with the new probabilities.</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError :</strong> – Description</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="sefef.postprocessing.Forecast.append">
+<span class="sig-name descname"><span class="pre">append</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred_proba</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamps</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/postprocessing.html#Forecast.append"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.postprocessing.Forecast.append" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sefef.postprocessing.Forecast.postprocess">
+<span class="sig-name descname"><span class="pre">postprocess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">forecast_horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth_win</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth_sliding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'clock-time'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/postprocessing.html#Forecast.postprocess"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.postprocessing.Forecast.postprocess" title="Link to this definition"></a></dt>
+<dd><p>Applies post-processing methodology to the predictions stored in “pred_proba”. For each time period with duration equal to “forecast_horizon”, mean predicted probabilities are calculated for groups of consecutive samples (with a window of duration “smooth_win”, in seconds), with or without overlap, and the maximum across the full period is obtained.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>forecast_horizon</strong> (<em>int</em>) – Forecast horizon in seconds, i.e. time in the future for which the forecasts will be issued.</p></li>
+<li><p><strong>smooth_win</strong> (<em>int</em>) – Duration of window, in seconds, used to smooth the predicted probabilities. If “smooth_sliding” is set to False, the duration of this variable should sum up to “forecast_horizon”.</p></li>
+<li><p><strong>smooth_sliding</strong> (<em>bool</em><em>, </em><em>defaults to False</em>) – Whether to use a sliding-window approach during smoothing (with a step of 1 sample), or to use non-overlaping smoothing windows. When True, not yet implemented.</p></li>
+<li><p><strong>origin</strong> (<em>str</em><em>, </em><em>defaults to &quot;clock-time&quot;</em>) – Determines if the forecasts are issued at clock-time (e.g. at the start of each hour) or according to the start-time of the first sample. Options are “clock-time” and “sample-time”, respectively.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>result1</strong> (<em>array-like, shape (#forecasts, ), dtype “float64”</em>) – Contains the predicted probabilites of seizure occurrence for the period with duration “forecast_horizon” and starting at the timestamps in “result2”.</p></li>
+<li><p><strong>result2</strong> (<em>array-like, shape (#forecasts, ), dtype “int64”</em>) – Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in “result1”) are valid.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="sefef-scoring">
+<span id="module-sefef.scoring"></span><h3><a class="toc-backref" href="#id6" role="doc-backlink">sefef.scoring</a><a class="headerlink" href="#sefef-scoring" title="Link to this heading"></a></h3>
+<p>This module contains functions to compute both deterministic and probvabilistic metrics according to the horizon of the forecast.</p>
+<dl class="field-list simple">
+<dt class="field-odd">copyright<span class="colon">:</span></dt>
+<dd class="field-odd"><ol class="loweralpha simple" start="3">
+<li><p>2024 by Ana Sofia Carmo</p></li>
+</ol>
+</dd>
+<dt class="field-even">license<span class="colon">:</span></dt>
+<dd class="field-even"><p>MIT License, see LICENSE for more details.</p>
+</dd>
+</dl>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">sefef.scoring.</span></span><span class="sig-name descname"><span class="pre">Scorer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metrics2compute</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sz_onsets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forecast_horizon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'prior_prob'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hist_prior_prob</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/scoring.html#Scorer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.scoring.Scorer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class description</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.metrics2compute">
+<span class="sig-name descname"><span class="pre">metrics2compute</span></span><a class="headerlink" href="#sefef.scoring.Scorer.metrics2compute" title="Link to this definition"></a></dt>
+<dd><p>List of metrics to compute. The metrics can be either deterministic or probabilistic and metric names should be the ones from the following list:
+- Deterministic: “Sen” (i.e. sensitivity), “FPR” (i.e. false positive rate), “TiW” (i.e. time in warning), “AUC-TiW” (i.e. area under the curve of Sen vs TiW).
+- Probabilistic: “resolution”, “reliability” or “BS” (i.e. Brier score), “skill” or “BSS” (i.e. Brier skill score).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list&lt;str&gt;</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.sz_onsets">
+<span class="sig-name descname"><span class="pre">sz_onsets</span></span><a class="headerlink" href="#sefef.scoring.Scorer.sz_onsets" title="Link to this definition"></a></dt>
+<dd><p>Contains the Unix timestamps, in seconds, for the start of each seizure onset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like, shape (#seizures, ), dtype “int64”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.forecast_horizon">
+<span class="sig-name descname"><span class="pre">forecast_horizon</span></span><a class="headerlink" href="#sefef.scoring.Scorer.forecast_horizon" title="Link to this definition"></a></dt>
+<dd><p>Forecast horizon in seconds, i.e. time in the future for which the forecasts are valid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.performance">
+<span class="sig-name descname"><span class="pre">performance</span></span><a class="headerlink" href="#sefef.scoring.Scorer.performance" title="Link to this definition"></a></dt>
+<dd><p>Dictionary where the keys are the metrics’ names (as in “metrics2compute”) and the value is the corresponding performance. It is initialized as an empty dictionary and populated in “compute_metrics”.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.reference_method">
+<span class="sig-name descname"><span class="pre">reference_method</span></span><a class="headerlink" href="#sefef.scoring.Scorer.reference_method" title="Link to this definition"></a></dt>
+<dd><p>Method to compute the reference forecasts.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str, defaults to “prior_prob”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.hist_prior_prob">
+<span class="sig-name descname"><span class="pre">hist_prior_prob</span></span><a class="headerlink" href="#sefef.scoring.Scorer.hist_prior_prob" title="Link to this definition"></a></dt>
+<dd><p>Prior probability, aka historical likelihood (relative frequency) of seizures in train data. Used only as the “hist_prior_prob” reference forecast compute the skill measure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float64, defaults to None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">compute_metrics(forecasts,</span> <span class="pre">timestamps):</span></span></dt>
+<dd><p>Computes metrics in “metrics2compute” for the probabilities in “forecasts” and populates the “performance” attribute. This method uses techniques described in <a class="reference internal" href="#mason2004" id="id1"><span>[Mason2004]</span></a> and <a class="reference internal" href="#stephenson2008" id="id2"><span>[Stephenson2008]</span></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">reliability_diagram()</span> <span class="pre">:</span></span></dt>
+<dd><p>Description</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError :</strong> – Raised when a metric name in “metrics2compute” is not a valid metric or when “reference_method” is not a valid method.</p></li>
+<li><p><strong>AttributeError :</strong> – Raised when ‘compute_metrics’ is called before ‘compute_metrics’.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">References</p>
+<div role="list" class="citation-list">
+<div class="citation" id="mason2004" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">Mason2004</a><span class="fn-bracket">]</span></span>
+<ol class="upperalpha simple" start="19">
+<li><ol class="upperalpha simple" start="10">
+<li><p>Mason, “On Using ‘Climatology’ as a Reference Strategy in the Brier and Ranked Probability Skill Scores,” Jul. 2004, Accessed: Nov. 06, 2024. [Online]. Available: <a class="reference external" href="https://journals.ametsoc.org/view/journals/mwre/132/7/1520-0493_2004_132_1891_oucaar_2.0.co_2.xml">https://journals.ametsoc.org/view/journals/mwre/132/7/1520-0493_2004_132_1891_oucaar_2.0.co_2.xml</a></p></li>
+</ol>
+</li>
+</ol>
+</div>
+<div class="citation" id="stephenson2008" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">Stephenson2008</a><span class="fn-bracket">]</span></span>
+<p>Stephenson, D. B. , C. A. S. Coelho, and I. T. Jolliffe. “Two Extra Components in the Brier Score Decomposition”, Weather and Forecasting 23, 4 (2008): 752-757, doi: <a class="reference external" href="https://doi.org/10.1175/2007WAF2006116.1">https://doi.org/10.1175/2007WAF2006116.1</a></p>
+</div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="sefef.scoring.Scorer.compute_metrics">
+<span class="sig-name descname"><span class="pre">compute_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">forecasts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">binning_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'equal_frequency'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_bins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_diagram</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/scoring.html#Scorer.compute_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.scoring.Scorer.compute_metrics" title="Link to this definition"></a></dt>
+<dd><p>Computes metrics in “metrics2compute” for the probabilities in “forecasts” and populates the “performance” attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>forecasts</strong> (<em>array-like</em><em>, </em><em>shape</em><em> (</em><em>#forecasts</em><em>, </em><em>)</em><em>, </em><em>dtype &quot;float64&quot;</em>) – Contains the predicted probabilites of seizure occurrence for the period with duration equal to the forecast horizon and starting at the timestamps in “timestamps”.</p></li>
+<li><p><strong>timestamps</strong> (<em>array-like</em><em>, </em><em>shape</em><em> (</em><em>#forecasts</em><em>, </em><em>)</em><em>, </em><em>dtype &quot;int64&quot;</em>) – Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in “forecasts”) are valid.</p></li>
+<li><p><strong>threshold</strong> (<em>float64</em><em>, </em><em>defaults to 0.5</em>) – Probability value to apply as the high-likelihood threshold.</p></li>
+<li><p><strong>binning_method</strong> (<em>str</em><em>, </em><em>defaults to &quot;equal_frequency&quot;</em>) – <dl class="simple">
+<dt>Method used to determine the number of bins used to compute probabilistic metrics. Available methods are:</dt><dd><ul>
+<li><p>”equal_width”: number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.</p></li>
+<li><p>”equal_frequency”: number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.</p></li>
+</ul>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>num_bins</strong> (<em>int64</em><em>, </em><em>defaults to 10</em>) – Number of bins used to compute probabilistic metrics. If None, it is calculated as np.ceil(#forecasts^(1/3)), otherwise “num_bins” is used as the number of bins.</p></li>
+<li><p><strong>draw_diagram</strong> (<em>bool</em><em>, </em><em>defaults to True</em>) – Whether to draw the reliability diagram after computing all required metrics.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>performance</strong> (<em>dict</em>) – Dictionary where the keys are the metrics’ names (as in “metrics2compute”) and the value is the corresponding performance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="sefef-visualization">
+<span id="module-sefef.visualization"></span><h3><a class="toc-backref" href="#id7" role="doc-backlink">sefef.visualization</a><a class="headerlink" href="#sefef-visualization" title="Link to this heading"></a></h3>
+<p>This is a helper module for visualization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">copyright<span class="colon">:</span></dt>
+<dd class="field-odd"><ol class="loweralpha simple" start="3">
+<li><p>2024 by Ana Sofia Carmo</p></li>
+</ol>
+</dd>
+<dt class="field-even">license<span class="colon">:</span></dt>
+<dd class="field-even"><p>MIT License, see LICENSE for more details.</p>
+</dd>
+</dl>
+</section>
+<dl class="py function">
+<dt class="sig sig-object py" id="sefef.visualization.hex_to_rgba">
+<span class="sig-prename descclassname"><span class="pre">sefef.visualization.</span></span><span class="sig-name descname"><span class="pre">hex_to_rgba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sefef/visualization.html#hex_to_rgba"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sefef.visualization.hex_to_rgba" title="Link to this definition"></a></dt>
+<dd><p>converts color value in hex format to rgba format with alpha transparency</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title=".Welcome to SeFEF" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Ana Sofia Carmo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,155 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>.Welcome to SeFEF &mdash; SeFEF 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="sefef.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#">
+            
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="sefef.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">SeFEF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">.Welcome to <code class="docutils literal notranslate"><span class="pre">SeFEF</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="welcome-to-sefef">
+<h1>.Welcome to <code class="docutils literal notranslate"><span class="pre">SeFEF</span></code><a class="headerlink" href="#welcome-to-sefef" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">SeFEF</span></code> is a Seizure Forecast Evaluation Framework written in Python.
+The framework standardizes the development, evaluation, and reporting of individualized algorithms for seizure likelihood forecast.
+<code class="docutils literal notranslate"><span class="pre">SeFEF</span></code> aims to decrease development time and minimize implementation errors by automating key procedures within data preparation, training/testing, and computation of evaluation metrics.</p>
+<p>Highlights:</p>
+<ul class="simple">
+<li><p>Evaluation: implements time series cross-validation.</p></li>
+<li><p>Labeling: automatically labels samples according to the desired pre-ictal duration and prediction latency.</p></li>
+<li><p>Postprocessing: processes individual predicted probabilities into a unified forecast according to the desired forecast horizon.</p></li>
+<li><p>Scoring: computes both deterministic and probvabilistic metrics according to the horizon of the forecast.</p></li>
+</ul>
+<p>Contents:</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="sefef.html">API Reference</a></li>
+</ul>
+</div>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>Installation can be easily done with <code class="docutils literal notranslate"><span class="pre">pip</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>sefef
+</pre></div>
+</div>
+</section>
+<section id="simple-example">
+<h2>Simple Example<a class="headerlink" href="#simple-example" title="Link to this heading"></a></h2>
+<p>The code below loads the metadata from an existing dataset from the <code class="docutils literal notranslate"><span class="pre">examples</span></code> folder, create a <code class="docutils literal notranslate"><span class="pre">Dataset</span></code> instance, and creates an adequate split for a time series cross-validation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">sefef</span> <span class="kn">import</span> <span class="n">evaluation</span>
+
+<span class="c1"># read example files</span>
+<span class="n">files_metadata</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;examples/files_metadata.csv&#39;</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;examples/sz_onsets.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+     <span class="n">sz_onsets</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+<span class="c1"># create Dataset instance and perform TSCV</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">evaluation</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">files_metadata</span><span class="p">,</span> <span class="n">sz_onsets</span><span class="p">,</span> <span class="n">sampling_frequency</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+<span class="n">tscv</span> <span class="o">=</span> <span class="n">evaluation</span><span class="o">.</span><span class="n">TimeSeriesCV</span><span class="p">()</span>
+<span class="n">tscv</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">iteratively</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="index">
+<h2>Index<a class="headerlink" href="#index" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sefef.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Ana Sofia Carmo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

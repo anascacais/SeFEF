@@ -1,0 +1,470 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sefef.scoring &mdash; SeFEF 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html">
+            
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../sefef.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">SeFEF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sefef.scoring</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sefef.scoring</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">sefef.scoring</span>
+<span class="sd">-------------</span>
+
+<span class="sd">This module contains functions to compute both deterministic and probvabilistic metrics according to the horizon of the forecast.</span>
+
+<span class="sd">:copyright: (c) 2024 by Ana Sofia Carmo</span>
+<span class="sd">:license: MIT License, see LICENSE for more details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># third-party</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">sklearn</span>
+<span class="kn">import</span> <span class="nn">sklearn.metrics</span>
+<span class="kn">import</span> <span class="nn">plotly.graph_objects</span> <span class="k">as</span> <span class="nn">go</span>
+
+
+<span class="c1"># local</span>
+<span class="kn">from</span> <span class="nn">sefef.visualization</span> <span class="kn">import</span> <span class="n">COLOR_PALETTE</span>
+
+
+<div class="viewcode-block" id="Scorer">
+<a class="viewcode-back" href="../../sefef.html#sefef.scoring.Scorer">[docs]</a>
+<span class="k">class</span> <span class="nc">Scorer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; Class description </span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------  </span>
+<span class="sd">    metrics2compute : list&lt;str&gt;</span>
+<span class="sd">        List of metrics to compute. The metrics can be either deterministic or probabilistic and metric names should be the ones from the following list:</span>
+<span class="sd">        - Deterministic: &quot;Sen&quot; (i.e. sensitivity), &quot;FPR&quot; (i.e. false positive rate), &quot;TiW&quot; (i.e. time in warning), &quot;AUC-TiW&quot; (i.e. area under the curve of Sen vs TiW). </span>
+<span class="sd">        - Probabilistic: &quot;resolution&quot;, &quot;reliability&quot; or &quot;BS&quot; (i.e. Brier score), &quot;skill&quot; or &quot;BSS&quot; (i.e. Brier skill score).    </span>
+<span class="sd">    sz_onsets : array-like, shape (#seizures, ), dtype &quot;int64&quot;</span>
+<span class="sd">        Contains the Unix timestamps, in seconds, for the start of each seizure onset.</span>
+<span class="sd">    forecast_horizon : int</span>
+<span class="sd">        Forecast horizon in seconds, i.e. time in the future for which the forecasts are valid.  </span>
+<span class="sd">    performance : dict</span>
+<span class="sd">        Dictionary where the keys are the metrics&#39; names (as in &quot;metrics2compute&quot;) and the value is the corresponding performance. It is initialized as an empty dictionary and populated in &quot;compute_metrics&quot;.</span>
+<span class="sd">    reference_method : str, defaults to &quot;prior_prob&quot;</span>
+<span class="sd">        Method to compute the reference forecasts.</span>
+<span class="sd">    hist_prior_prob : float64, defaults to None</span>
+<span class="sd">        Prior probability, aka historical likelihood (relative frequency) of seizures in train data. Used only as the &quot;hist_prior_prob&quot; reference forecast compute the skill measure. </span>
+<span class="sd">    Methods</span>
+<span class="sd">    -------</span>
+<span class="sd">    compute_metrics(forecasts, timestamps):</span>
+<span class="sd">        Computes metrics in &quot;metrics2compute&quot; for the probabilities in &quot;forecasts&quot; and populates the &quot;performance&quot; attribute. This method uses techniques described in [Mason2004]_ and [Stephenson2008]_. </span>
+<span class="sd">    reliability_diagram() :</span>
+<span class="sd">        Description</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    -------</span>
+<span class="sd">    ValueError :</span>
+<span class="sd">        Raised when a metric name in &quot;metrics2compute&quot; is not a valid metric or when &quot;reference_method&quot; is not a valid method.</span>
+<span class="sd">    AttributeError :</span>
+<span class="sd">        Raised when &#39;compute_metrics&#39; is called before &#39;compute_metrics&#39;.</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    .. [Mason2004] S. J. Mason, “On Using ‘Climatology’ as a Reference Strategy in the Brier and Ranked Probability Skill Scores,” Jul. 2004, Accessed: Nov. 06, 2024. [Online]. Available: https://journals.ametsoc.org/view/journals/mwre/132/7/1520-0493_2004_132_1891_oucaar_2.0.co_2.xml</span>
+<span class="sd">    .. [Stephenson2008] Stephenson, D. B. , C. A. S. Coelho, and I. T. Jolliffe. &quot;Two Extra Components in the Brier Score Decomposition&quot;, Weather and Forecasting 23, 4 (2008): 752-757, doi: https://doi.org/10.1175/2007WAF2006116.1</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics2compute</span><span class="p">,</span> <span class="n">sz_onsets</span><span class="p">,</span> <span class="n">forecast_horizon</span><span class="p">,</span> <span class="n">reference_method</span><span class="o">=</span><span class="s1">&#39;prior_prob&#39;</span><span class="p">,</span> <span class="n">hist_prior_prob</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics2compute</span> <span class="o">=</span> <span class="n">metrics2compute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">sz_onsets</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">forecast_horizon</span> <span class="o">=</span> <span class="n">forecast_horizon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reference_method</span> <span class="o">=</span> <span class="n">reference_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hist_prior_prob</span> <span class="o">=</span> <span class="n">hist_prior_prob</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">performance</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics2function</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Sen&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_Sen</span><span class="p">,</span> <span class="s1">&#39;FPR&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_FPR</span><span class="p">,</span> <span class="s1">&#39;TiW&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_TiW</span><span class="p">,</span> <span class="s1">&#39;AUC-TiW&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_AUC</span><span class="p">,</span> <span class="s1">&#39;resolution&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_resolution</span><span class="p">,</span>
+                                 <span class="s1">&#39;reliability&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_reliability</span><span class="p">,</span> <span class="s1">&#39;calibration&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_reliability</span><span class="p">,</span> <span class="s1">&#39;BS&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_BS</span><span class="p">,</span>  <span class="s1">&#39;skill&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_skill</span><span class="p">,</span> <span class="s1">&#39;BSS&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_skill</span><span class="p">}</span>
+
+<div class="viewcode-block" id="Scorer.compute_metrics">
+<a class="viewcode-back" href="../../sefef.html#sefef.scoring.Scorer.compute_metrics">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">binning_method</span><span class="o">=</span><span class="s1">&#39;equal_frequency&#39;</span><span class="p">,</span> <span class="n">num_bins</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">draw_diagram</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Computes metrics in &quot;metrics2compute&quot; for the probabilities in &quot;forecasts&quot; and populates the &quot;performance&quot; attribute.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ---------- </span>
+<span class="sd">        forecasts : array-like, shape (#forecasts, ), dtype &quot;float64&quot;</span>
+<span class="sd">            Contains the predicted probabilites of seizure occurrence for the period with duration equal to the forecast horizon and starting at the timestamps in &quot;timestamps&quot;.</span>
+<span class="sd">        timestamps : array-like, shape (#forecasts, ), dtype &quot;int64&quot;</span>
+<span class="sd">            Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in &quot;forecasts&quot;) are valid. </span>
+<span class="sd">        threshold : float64, defaults to 0.5</span>
+<span class="sd">            Probability value to apply as the high-likelihood threshold. </span>
+<span class="sd">        binning_method : str, defaults to &quot;equal_frequency&quot;</span>
+<span class="sd">            Method used to determine the number of bins used to compute probabilistic metrics. Available methods are: </span>
+<span class="sd">                - &quot;equal_width&quot;: number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.</span>
+<span class="sd">                - &quot;equal_frequency&quot;: number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.</span>
+<span class="sd">        num_bins : int64, defaults to 10</span>
+<span class="sd">            Number of bins used to compute probabilistic metrics. If None, it is calculated as np.ceil(#forecasts^(1/3)), otherwise &quot;num_bins&quot; is used as the number of bins.</span>
+<span class="sd">        draw_diagram : bool, defaults to True</span>
+<span class="sd">            Whether to draw the reliability diagram after computing all required metrics. </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        performance : dict </span>
+<span class="sd">            Dictionary where the keys are the metrics&#39; names (as in &quot;metrics2compute&quot;) and the value is the corresponding performance.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">timestamps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+        <span class="n">forecasts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+
+        <span class="n">timestamps</span> <span class="o">=</span> <span class="n">timestamps</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)]</span>
+        <span class="n">forecasts</span> <span class="o">=</span> <span class="n">forecasts</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)]</span>  <span class="c1"># TODO: VERIFY THIS</span>
+
+        <span class="k">for</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics2compute</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Sen&#39;</span><span class="p">,</span> <span class="s1">&#39;FPR&#39;</span><span class="p">,</span> <span class="s1">&#39;TiW&#39;</span><span class="p">]:</span>
+                <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_counts</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics2function</span><span class="p">[</span><span class="n">metric_name</span><span class="p">](</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">metric_name</span> <span class="o">==</span> <span class="s1">&#39;AUC-TiW&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics2function</span><span class="p">[</span><span class="n">metric_name</span><span class="p">](</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;resolution&#39;</span><span class="p">,</span> <span class="s1">&#39;reliability&#39;</span><span class="p">,</span> <span class="s1">&#39;calibration&#39;</span><span class="p">,</span> <span class="s1">&#39;BS&#39;</span><span class="p">,</span> <span class="s1">&#39;skill&#39;</span><span class="p">,</span> <span class="s1">&#39;BSS&#39;</span><span class="p">]:</span>
+                <span class="n">bin_edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_bins_indx</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">binning_method</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics2function</span><span class="p">[</span><span class="n">metric_name</span><span class="p">](</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">metric_name</span><span class="si">}</span><span class="s1"> is not a valid metric.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">draw_diagram</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reliability_diagram</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">binning_method</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span></div>
+
+
+    <span class="c1"># Deterministic metrics</span>
+
+    <span class="k">def</span> <span class="nf">_get_counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps_start_forecast</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes counts of true positives (tp), false positives (fp), and false negatives (fn), according to the occurrence (or not) of a seizure event within the forecast horizon.&#39;&#39;&#39;</span>
+        <span class="n">timestamps_end_forecast</span> <span class="o">=</span> <span class="n">timestamps_start_forecast</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">forecast_horizon</span> <span class="o">-</span> <span class="mi">1</span>
+
+        <span class="n">tp_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">timestamps_start_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">timestamps_end_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="n">forecasts</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">no_sz_forecasts</span> <span class="o">=</span> <span class="n">forecasts</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">timestamps_start_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span>
+            <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">timestamps_end_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)]</span>
+
+        <span class="n">tp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tp_counts</span><span class="p">)</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">)</span> <span class="o">-</span> <span class="n">tp</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">no_sz_forecasts</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span>
+
+    <span class="k">def</span> <span class="nf">_compute_Sen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes sensitivity, providing a measure of the model&#39;s ability to correctly identify pre-ictal periods.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">tp</span> <span class="o">/</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_FPR</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the false positive rate, i.e. the proportion of time that the user incorrectly spends in alert.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">fp</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_TiW</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the time in warning, i.e. the proportion of time that the user spends in alert (i.e. in a high likelihood state, independently of the ”goodness” of the forecast).&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">fp</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_AUC</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the area under the Sen vs TiW curve, abstracting the need for threshold optimization. Computed as the numerical integration of Sen vs TiW using the trapezoidal rule.&#39;&#39;&#39;</span>
+        <span class="c1"># use unique forecasted values as thresholds</span>
+        <span class="n">thresholds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+
+        <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_counts</span><span class="p">,</span> <span class="n">excluded</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;forecasts&#39;</span><span class="p">,</span> <span class="s1">&#39;timestamps_start_forecast&#39;</span><span class="p">])(</span>
+            <span class="n">forecasts</span><span class="o">=</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps_start_forecast</span><span class="o">=</span><span class="n">timestamps</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">thresholds</span><span class="p">)</span>
+
+        <span class="n">sen</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compute_Sen</span><span class="p">,</span> <span class="n">excluded</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;forecasts&#39;</span><span class="p">])(</span><span class="n">tp</span><span class="o">=</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="o">=</span><span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span> <span class="n">forecasts</span><span class="o">=</span><span class="n">forecasts</span><span class="p">)</span>
+        <span class="n">tiw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compute_TiW</span><span class="p">,</span> <span class="n">excluded</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;forecasts&#39;</span><span class="p">])(</span><span class="n">tp</span><span class="o">=</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="o">=</span><span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span> <span class="n">forecasts</span><span class="o">=</span><span class="n">forecasts</span><span class="p">)</span>
+
+        <span class="c1"># add point (0, 0) to curve since the auc() function computes the area strictly based on the given points</span>
+        <span class="k">return</span> <span class="n">sklearn</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">auc</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tiw</span><span class="p">,</span> <span class="mf">0.</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sen</span><span class="p">,</span> <span class="mf">0.</span><span class="p">))</span>
+
+    <span class="c1"># Probabilistic metrics</span>
+
+    <span class="k">def</span> <span class="nf">_get_bins_indx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">binning_method</span><span class="p">,</span> <span class="n">num_bins</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the edges of probability bins so that each bin contains the same number of observations. If not provided, the number of bins is determined by n^(1/3), as proposed in np.histogram_bin_edges.&#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="n">num_bins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">num_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int64&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">binning_method</span> <span class="o">==</span> <span class="s1">&#39;equal_width&#39;</span><span class="p">:</span>
+            <span class="n">bin_edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">binning_method</span> <span class="o">==</span> <span class="s1">&#39;equal_frequency&#39;</span><span class="p">:</span>
+            <span class="n">percentile</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">num_bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">bin_edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">forecasts</span><span class="p">),</span> <span class="n">percentile</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>  <span class="c1"># remove edge corresponding to 0th percentile</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">binning_method</span><span class="si">}</span><span class="s1"> is not a valid binning method&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">bin_edges</span>
+
+    <span class="k">def</span> <span class="nf">_compute_resolution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the resolution, i.e. the ability of the model to diﬀerentiate between individual observed probabilities and the average observed probability. &quot;y_avg&quot;: observed relative frequency of true events for all forecasts; &quot;y_k_avg&quot;: observed relative frequency of true events for the kth probability bin.&#39;&#39;&#39;</span>
+
+        <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">y_avg</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+        <span class="n">resolution</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">binned_data</span><span class="p">):</span>
+            <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">events_in_bin</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_counts</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">],</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">)</span>
+            <span class="n">y_k_avg</span> <span class="o">=</span> <span class="n">events_in_bin</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])</span>
+            <span class="n">resolution</span> <span class="o">+=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])</span> <span class="o">*</span> <span class="p">((</span><span class="n">y_k_avg</span> <span class="o">-</span> <span class="n">y_avg</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resolution</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_compute_reliability</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes reliability, i.e. the agreement between forecasted and observed probabilities through the Brier score. &quot;y_k_avg&quot;: observed relative frequency of true events for the kth probability bin.&#39;&#39;&#39;</span>
+
+        <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">reliability</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">binned_data</span><span class="p">):</span>
+            <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">events_in_bin</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_counts</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">],</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">)</span>
+            <span class="n">y_k_avg</span> <span class="o">=</span> <span class="n">events_in_bin</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])</span>
+            <span class="n">reliability</span> <span class="o">+=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])</span> <span class="o">*</span> <span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])</span> <span class="o">-</span> <span class="n">y_k_avg</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">reliability</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_compute_uncertainty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes uncertainty. &quot;y_avg&quot;: observed relative frequency of true events for all forecasts&#39;&#39;&#39;</span>
+        <span class="n">y_avg</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">y_avg</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">y_avg</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">_compute_WBV</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes within-bin variance.&#39;&#39;&#39;</span>
+        <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">wbv</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">binned_data</span><span class="p">):</span>
+            <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">wbv</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]))</span><span class="o">**</span><span class="mi">2</span><span class="p">)]</span>
+        
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wbv</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
+ 
+    <span class="k">def</span> <span class="nf">_compute_WBC</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes within-bin covariance.&#39;&#39;&#39;</span>
+        <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">wbc</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">binned_data</span><span class="p">):</span>
+            <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">timestamps_start_forecast</span> <span class="o">=</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span>
+            <span class="n">timestamps_end_forecast</span> <span class="o">=</span> <span class="n">timestamps_start_forecast</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">forecast_horizon</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">y_ki</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">timestamps_start_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">timestamps_end_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">wbc</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">y_ki</span> <span class="o">-</span>  <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y_ki</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])))]</span>
+        
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wbc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
+
+
+    <span class="k">def</span> <span class="nf">_compute_BS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the Brier score, through the decomposition proposed in [Stephenson2008]_.&#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;reliability&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">reliability</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="p">[</span><span class="s1">&#39;reliability&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">reliability</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_reliability</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;resolution&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">resolution</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="p">[</span><span class="s1">&#39;resolution&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">resolution</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_resolution</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+
+        <span class="n">uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_uncertainty</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+        <span class="n">wbv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_WBV</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+        <span class="n">wbc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_WBC</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">reliability</span> <span class="o">-</span> <span class="n">resolution</span> <span class="o">+</span> <span class="n">uncertainty</span> <span class="o">+</span> <span class="n">wbv</span> <span class="o">-</span> <span class="n">wbc</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_skill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the Brier skill score against a reference forecast. Simplification of BS of reference forecast as described in [Mason2004]_.&#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;BS&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">bs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">performance</span><span class="p">[</span><span class="s1">&#39;BS&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_BS</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">)</span>
+
+        <span class="n">ref_forecasts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_reference_forecasts</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">bs</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_uncertainty</span><span class="p">(</span><span class="n">ref_forecasts</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_reference_forecasts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that returns a reference forecast according to the specified method. &quot;y_avg&quot;: observed relative frequency of true events for all forecasts.&#39;&#39;&#39;</span>
+        <span class="c1"># if self.reference_method == &#39;hist_prior_prob&#39;:</span>
+        <span class="c1">#     return self.hist_prior_prob * np.ones_like(timestamps)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_method</span> <span class="o">==</span> <span class="s1">&#39;prior_prob&#39;</span><span class="p">:</span>
+            <span class="n">y_avg</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">y_avg</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reference_method</span><span class="si">}</span><span class="s1"> is not a valid method to compute the reference forecasts.&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_reliability_diagram</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">binning_method</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that plots the reliability diagram (forecasted_proba vs observed_proba), along with the no-resolution and perfect-reliability lines.&#39;&#39;&#39;</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+
+        <span class="n">y_avg</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+        <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">bin_edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">bin_edges</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)</span>
+        <span class="n">diagram_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;observed_proba&#39;</span><span class="p">,</span> <span class="s1">&#39;forecasted_proba&#39;</span><span class="p">],</span>
+                                    <span class="n">index</span><span class="o">=</span><span class="p">(</span><span class="n">bin_edges</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">bin_edges</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">binned_data</span><span class="p">):</span>
+            <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">events_in_bin</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_counts</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">],</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.</span><span class="p">)</span>
+            <span class="n">y_k_avg</span> <span class="o">=</span> <span class="n">events_in_bin</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])</span>
+            <span class="n">diagram_data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_k_avg</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])]</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">diagram_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s1">&#39;forecasted_proba&#39;</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">diagram_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s1">&#39;observed_proba&#39;</span><span class="p">],</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">COLOR_PALETTE</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Reliability curve&#39;</span>
+        <span class="p">))</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">diagram_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s1">&#39;forecasted_proba&#39;</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">diagram_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s1">&#39;observed_proba&#39;</span><span class="p">],</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;markers&#39;</span><span class="p">,</span>
+            <span class="n">marker</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">COLOR_PALETTE</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Bin average&#39;</span>
+        <span class="p">))</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">COLOR_PALETTE</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dash</span><span class="o">=</span><span class="s1">&#39;dash&#39;</span><span class="p">),</span>
+            <span class="c1"># showlegend=False,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Perfect reliability&#39;</span>
+        <span class="p">))</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">y_avg</span><span class="p">,</span> <span class="n">y_avg</span><span class="p">],</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;lightgrey&#39;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s1">&#39;dash&#39;</span><span class="p">),</span>
+            <span class="c1"># showlegend=False,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;No resolution&#39;</span>
+        <span class="p">))</span>
+
+        <span class="c1"># Config plot layout</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span>
+            <span class="n">title</span><span class="o">=</span><span class="s1">&#39;observed probability&#39;</span><span class="p">,</span>
+            <span class="n">tickfont</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">12</span><span class="p">),</span>
+            <span class="n">showline</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">linecolor</span><span class="o">=</span><span class="n">COLOR_PALETTE</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="n">showgrid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span>
+            <span class="n">title</span><span class="o">=</span><span class="s1">&#39;forecasted probability&#39;</span><span class="p">,</span>
+            <span class="n">tickfont</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">12</span><span class="p">),</span>
+            <span class="n">showline</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">linecolor</span><span class="o">=</span><span class="n">COLOR_PALETTE</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="n">showgrid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">tickmode</span><span class="o">=</span><span class="s1">&#39;array&#39;</span><span class="p">,</span>
+            <span class="n">tickvals</span><span class="o">=</span><span class="n">bin_edges</span><span class="p">,</span>
+            <span class="n">tickformat</span><span class="o">=</span><span class="s1">&#39;.3&#39;</span><span class="p">,</span>
+            <span class="n">ticks</span><span class="o">=</span><span class="s2">&quot;inside&quot;</span><span class="p">,</span> <span class="n">tickwidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">tickcolor</span><span class="o">=</span><span class="n">COLOR_PALETTE</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">ticklen</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+            <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Reliability diagram (binning method: </span><span class="si">{</span><span class="n">binning_method</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span>
+            <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">plot_bgcolor</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        <span class="k">pass</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Ana Sofia Carmo.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
