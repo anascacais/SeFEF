@@ -128,6 +128,17 @@ class TestScorer(unittest.TestCase):
         performance = scorer.compute_metrics(forecasts, self.timestamps, binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
         expected_performance =  (0.2**2 + (0.6-1)**2 + (0.8-1)**2) / 3
         self.assertTrue(performance['BS'] == expected_performance)
+
+    
+    def test_brier_score_equal_width_nonzero_wbc(self):
+        metrics2compute = ['BS']
+        sz_onsets = [1609460100, 1609460880]
+        forecasts = [0.2, 0.3, 0.7, 0.9]
+        timestamps = np.arange(1609459620, 1609461060, self.forecast_horizon)
+        scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
+        performance = scorer.compute_metrics(forecasts, timestamps, binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+        expected_performance = 0.2575
+        self.assertTrue(performance['BS'] == expected_performance)
     
 
     def test_brier_skill_score_equal_width(self):
