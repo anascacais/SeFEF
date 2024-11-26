@@ -12,6 +12,7 @@ The framework standardizes the development, evaluation, and reporting of individ
 ``SeFEF`` aims to decrease development time and minimize implementation errors by automating key procedures within data preparation, training/testing, and computation of evaluation metrics. 
 
 Highlights:
+-----------
 
 - ``evaluation`` module: implements time series cross-validation.
 - ``labeling`` module: automatically labels samples according to the desired pre-ictal duration and prediction latency.
@@ -19,6 +20,7 @@ Highlights:
 - ``scoring`` module: computes both deterministic and probabilistic metrics according to the horizon of the forecast.  
 
 Contents:
+---------
 
 .. toctree::
    :maxdepth: 1

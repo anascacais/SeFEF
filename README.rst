@@ -19,13 +19,7 @@ Highlights:
 - ``postprocessing`` module: processes individual predicted probabilities into a unified forecast according to the desired forecast horizon.
 - ``scoring`` module: computes both deterministic and probabilistic metrics according to the horizon of the forecast.  
 
-Contents:
----------
 
-.. toctree::
-   :maxdepth: 1
-
-   sefef
 
 Installation
 ------------
@@ -56,10 +50,3 @@ The code below loads the metadata from an existing dataset from the ``examples``
     dataset = evaluation.Dataset(files_metadata, sz_onsets, sampling_frequency=128)
     tscv = evaluation.TimeSeriesCV()
     tscv.split(dataset, iteratively=False, plot=True)
-
-Index
------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
