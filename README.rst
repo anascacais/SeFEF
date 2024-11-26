@@ -1,7 +1,7 @@
 Welcome to ``SeFEF``
 ======================
 
-.. image:: logo/sefef-logo.png
+.. image:: docs/logo/sefef-logo.png
     :align: center
     :alt: SeFEF logo
 
