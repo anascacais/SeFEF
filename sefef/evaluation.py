@@ -1,10 +1,12 @@
+# -*- coding: utf-8 -*-
 """
-Module Name: evaluation
-Description: Contains functions to impement time-series cross validation (TSCV)
-Author: Ana Sofia Carmo
-Date: Oct 1, 2024
-Version: 0.0.1
-License: MIT License
+sefef.evaluation
+----------------
+
+This module contains functions to implement time-series cross validation (TSCV).
+
+:copyright: (c) 2024 by Ana Sofia Carmo
+:license: MIT License, see LICENSE for more details.
 """
 
 # third-party
@@ -79,7 +81,7 @@ class TimeSeriesCV:
             If a diagram illustrating the TSCV should be shown at the end. 'iteratively' cannot be set to True
 
         Returns:
-        -------
+        --------
         train_start_ts : int
             Timestamp index for the start of the train set.
         test_start_ts : int
@@ -343,10 +345,10 @@ class TimeSeriesCV:
         tuple: 
             - ((train_data, train_annotations, train_timestamps), (test_data, test_sz_onsets, test_timestamps))
             - Where:
-                - "*_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
-                - "*_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
-                - "*_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
-                - "*_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
+                - "[]_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
+                - "[]_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
+                - "[]_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
+                - "[]_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
         '''
         timestamps = h5dataset['timestamps'][()]
         sz_onsets = h5dataset['sz_onsets'][()]

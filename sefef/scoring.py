@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+sefef.scoring
+-------------
+
+This module contains functions to compute both deterministic and probvabilistic metrics according to the horizon of the forecast.
+
+:copyright: (c) 2024 by Ana Sofia Carmo
+:license: MIT License, see LICENSE for more details.
+"""
 
 # third-party
 import pandas as pd
@@ -33,7 +43,7 @@ class Scorer:
     Methods
     -------
     compute_metrics(forecasts, timestamps):
-        Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
+        Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute. This method uses techniques described in [Mason2004]_ and [Stephenson2008]_. 
     reliability_diagram() :
         Description
 
@@ -46,8 +56,8 @@ class Scorer:
 
     References
     ----------
-    .. [Mason2004] [1] S. J. Mason, “On Using ‘Climatology’ as a Reference Strategy in the Brier and Ranked Probability Skill Scores,” Jul. 2004, Accessed: Nov. 06, 2024. [Online]. Available: https://journals.ametsoc.org/view/journals/mwre/132/7/1520-0493_2004_132_1891_oucaar_2.0.co_2.xml
-    .. [Murphy1973] A. H. Murphy, “A New Vector Partition of the Probability Score,” Jun. 1973, Accessed: Nov. 06, 2024. [Online]. Available: https://journals.ametsoc.org/view/journals/apme/12/4/1520-0450_1973_012_0595_anvpot_2_0_co_2.xml
+    .. [Mason2004] S. J. Mason, “On Using ‘Climatology’ as a Reference Strategy in the Brier and Ranked Probability Skill Scores,” Jul. 2004, Accessed: Nov. 06, 2024. [Online]. Available: https://journals.ametsoc.org/view/journals/mwre/132/7/1520-0493_2004_132_1891_oucaar_2.0.co_2.xml
+    .. [Stephenson2008] Stephenson, D. B. , C. A. S. Coelho, and I. T. Jolliffe. "Two Extra Components in the Brier Score Decomposition", Weather and Forecasting 23, 4 (2008): 752-757, doi: https://doi.org/10.1175/2007WAF2006116.1
     '''
 
     def __init__(self, metrics2compute, sz_onsets, forecast_horizon, reference_method='prior_prob', hist_prior_prob=None):
@@ -237,7 +247,7 @@ class Scorer:
 
 
     def _compute_BS(self, forecasts, timestamps, bin_edges):
-        '''Internal method that computes the Brier score, through the decomposition proposed in [Murphy1973].'''
+        '''Internal method that computes the Brier score, through the decomposition proposed in [Stephenson2008]_.'''
 
         if 'reliability' in self.performance.keys():
             reliability = self.performance['reliability']
@@ -256,7 +266,7 @@ class Scorer:
         return (reliability - resolution + uncertainty + wbv - wbc)
 
     def _compute_skill(self, forecasts, timestamps, bin_edges):
-        '''Internal method that computes the Brier skill score against a reference forecast. Simplification of BS of reference forecast as described in [Mason2004].'''
+        '''Internal method that computes the Brier skill score against a reference forecast. Simplification of BS of reference forecast as described in [Mason2004]_.'''
 
         if 'BS' in self.performance.keys():
             bs = self.performance['BS']

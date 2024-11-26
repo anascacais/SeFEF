@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+sefef.postprocessing
+--------------------
+
+This module contains functions to process individual predicted probabilities into a unified forecast according to the desired forecast horizon.
+Author: Ana Sofia Carmo
+
+:copyright: (c) 2024 by Ana Sofia Carmo
+:license: MIT License, see LICENSE for more details.
+"""
+
 # third-party
 import pandas as pd
 import numpy as np

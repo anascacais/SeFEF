@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+sefef.labeling
+--------------
+
+This module contains functions to automatically label samples according to the desired pre-ictal duration and prediction latency.
+
+:copyright: (c) 2024 by Ana Sofia Carmo
+:license: MIT License, see LICENSE for more details.
+"""
+
+
 # built-in
 import warnings
 
