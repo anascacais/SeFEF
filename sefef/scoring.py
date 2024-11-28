@@ -6,7 +6,7 @@ sefef.scoring
 This module contains functions to compute both deterministic and probvabilistic metrics according to the horizon of the forecast.
 
 :copyright: (c) 2024 by Ana Sofia Carmo
-:license: MIT License, see LICENSE for more details.
+:license: BSD 3-clause License, see LICENSE for more details.
 """
 
 # third-party
@@ -219,7 +219,7 @@ class Scorer:
         '''Internal method that computes uncertainty. "y_avg": observed relative frequency of true events for all forecasts'''
         y_avg = len(self.sz_onsets) / len(forecasts)
         return y_avg * (1-y_avg)
-    
+
     def _compute_WBV(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes within-bin variance.'''
         binned_data = np.digitize(forecasts, bin_edges, right=True)
@@ -228,9 +228,9 @@ class Scorer:
         for k in np.unique(binned_data):
             binned_indx = np.where(binned_data == k)
             wbv += [np.sum((forecasts[binned_indx] - np.mean(forecasts[binned_indx]))**2)]
-        
+
         return np.sum(wbv) * (1/len(forecasts))
- 
+
     def _compute_WBC(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes within-bin covariance.'''
         binned_data = np.digitize(forecasts, bin_edges, right=True)
@@ -240,11 +240,11 @@ class Scorer:
             binned_indx = np.where(binned_data == k)
             timestamps_start_forecast = timestamps[binned_indx]
             timestamps_end_forecast = timestamps_start_forecast + self.forecast_horizon - 1
-            y_ki = np.any((self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]), axis=0)
-            wbc += [np.sum((y_ki -  np.mean(y_ki)) * (forecasts[binned_indx] - np.mean(forecasts[binned_indx])))]
-        
-        return np.sum(wbc) * (2/len(forecasts))
+            y_ki = np.any((self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :]) & (
+                self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :]), axis=0)
+            wbc += [np.sum((y_ki - np.mean(y_ki)) * (forecasts[binned_indx] - np.mean(forecasts[binned_indx])))]
 
+        return np.sum(wbc) * (2/len(forecasts))
 
     def _compute_BS(self, forecasts, timestamps, bin_edges):
         '''Internal method that computes the Brier score, through the decomposition proposed in [Stephenson2008]_.'''

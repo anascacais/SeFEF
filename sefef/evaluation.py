@@ -6,7 +6,7 @@ sefef.evaluation
 This module contains functions to implement time-series cross validation (TSCV).
 
 :copyright: (c) 2024 by Ana Sofia Carmo
-:license: MIT License, see LICENSE for more details.
+:license: BSD 3-clause License, see LICENSE for more details.
 """
 
 # third-party
@@ -92,7 +92,8 @@ class TimeSeriesCV:
 
         if self.initial_train_duration is None:
             total_recorded_duration = dataset.files_metadata['total_duration'].sum()
-            if total_recorded_duration == 0: raise ValueError(f"Dataset is empty.")
+            if total_recorded_duration == 0:
+                raise ValueError(f"Dataset is empty.")
             self.initial_train_duration = (1/3) * total_recorded_duration
 
         if self.test_duration is None:
@@ -102,7 +103,7 @@ class TimeSeriesCV:
         if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
             raise ValueError(
                 f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
-        
+
         if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
             raise ValueError(
                 f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
@@ -284,7 +285,8 @@ class TimeSeriesCV:
         """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
 
         # Create row for nan after files that are not contiguous (after file duration)
-        missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration'][:-1]).tolist() + [False]].astype({'sz_onset': 'Int64'})
+        missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration']
+                                [:-1]).tolist() + [False]].astype({'sz_onset': 'Int64'})
         missing_data.set_index(missing_data.index + missing_data['total_duration'], inplace=True)
         missing_data.iloc[:, :] = ['', 0, np.nan]
 
@@ -398,21 +400,27 @@ class Dataset:
         """Internal method that updates 'self.metadata' by placing each seizure onset within an acquisition file."""
 
         timestamps_file_start = self.files_metadata['first_timestamp'].to_numpy()
-        timestamps_file_end = (self.files_metadata['first_timestamp'] + self.files_metadata['total_duration']).to_numpy()
+        timestamps_file_end = (self.files_metadata['first_timestamp'] +
+                               self.files_metadata['total_duration']).to_numpy()
 
         # identify seizures within existant files
-        sz_onset_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :]))
+        sz_onset_indx = np.argwhere((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (
+            self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :]))
 
         files_metadata = self.files_metadata.copy()
         files_metadata['sz_onset'] = 0
         files_metadata.loc[sz_onset_indx[:, 1], 'sz_onset'] = 1
 
         # identify seizures outside of existant files
-        sz_onset_indx = np.argwhere(~np.any(((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :])), axis=1)).flatten()
+        sz_onset_indx = np.argwhere(~np.any(((self.sz_onsets[:, np.newaxis] >= timestamps_file_start[np.newaxis, :]) & (
+            self.sz_onsets[:, np.newaxis] < timestamps_file_end[np.newaxis, :])), axis=1)).flatten()
         if len(sz_onset_indx) != 0:
-            sz_onsets = pd.DataFrame({'first_timestamp': self.sz_onsets[sz_onset_indx], 'sz_onset': [1]*len(sz_onset_indx)}, dtype='int64')
-            files_metadata = pd.merge(files_metadata.reset_index(), sz_onsets.reset_index(), on='first_timestamp', how='outer', suffixes=('_df1', '_df2'))
-            files_metadata['sz_onset'] = files_metadata['sz_onset_df1'].combine_first(files_metadata['sz_onset_df2']).fillna(0).astype('int64')
+            sz_onsets = pd.DataFrame({'first_timestamp': self.sz_onsets[sz_onset_indx], 'sz_onset': [
+                                     1]*len(sz_onset_indx)}, dtype='int64')
+            files_metadata = pd.merge(files_metadata.reset_index(), sz_onsets.reset_index(),
+                                      on='first_timestamp', how='outer', suffixes=('_df1', '_df2'))
+            files_metadata['sz_onset'] = files_metadata['sz_onset_df1'].combine_first(
+                files_metadata['sz_onset_df2']).fillna(0).astype('int64')
             files_metadata['total_duration'] = files_metadata['total_duration'].fillna(0).astype('int64')
 
         files_metadata.set_index(pd.Index(files_metadata['first_timestamp'].to_numpy(), dtype='int64'), inplace=True)
@@ -420,8 +428,9 @@ class Dataset:
 
         try:
             files_metadata = pd.concat((
-                files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series([files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='int64')),
-                ), ignore_index=False) # add empty row at the end for indexing
+                files_metadata, pd.DataFrame([[np.nan, 0, 0]], columns=files_metadata.columns, index=pd.Series(
+                    [files_metadata.iloc[-1].name+files_metadata.iloc[-1]['total_duration']], dtype='int64')),
+            ), ignore_index=False)  # add empty row at the end for indexing
         except IndexError:
             pass
         return files_metadata

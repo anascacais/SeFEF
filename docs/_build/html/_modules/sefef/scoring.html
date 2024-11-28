@@ -5,14 +5,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>sefef.scoring &mdash; SeFEF 0.0.1 documentation</title>
+  <title>sefef.scoring &mdash; SeFEF 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
   
+    <link rel="shortcut icon" href="../../_static/sefef-icon.ico"/>
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -30,6 +31,7 @@
           
           <a href="../../index.html">
             
+              <img src="../../_static/sefef-logo.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -76,7 +78,7 @@
 <span class="sd">This module contains functions to compute both deterministic and probvabilistic metrics according to the horizon of the forecast.</span>
 
 <span class="sd">:copyright: (c) 2024 by Ana Sofia Carmo</span>
-<span class="sd">:license: MIT License, see LICENSE for more details.</span>
+<span class="sd">:license: BSD 3-clause License, see LICENSE for more details.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="c1"># third-party</span>
@@ -294,7 +296,7 @@
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes uncertainty. &quot;y_avg&quot;: observed relative frequency of true events for all forecasts&#39;&#39;&#39;</span>
         <span class="n">y_avg</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">y_avg</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">y_avg</span><span class="p">)</span>
-    
+
     <span class="k">def</span> <span class="nf">_compute_WBV</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes within-bin variance.&#39;&#39;&#39;</span>
         <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -303,9 +305,9 @@
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">binned_data</span><span class="p">):</span>
             <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
             <span class="n">wbv</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]))</span><span class="o">**</span><span class="mi">2</span><span class="p">)]</span>
-        
+
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wbv</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
- 
+
     <span class="k">def</span> <span class="nf">_compute_WBC</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes within-bin covariance.&#39;&#39;&#39;</span>
         <span class="n">binned_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">forecasts</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -315,11 +317,11 @@
             <span class="n">binned_indx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binned_data</span> <span class="o">==</span> <span class="n">k</span><span class="p">)</span>
             <span class="n">timestamps_start_forecast</span> <span class="o">=</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span>
             <span class="n">timestamps_end_forecast</span> <span class="o">=</span> <span class="n">timestamps_start_forecast</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">forecast_horizon</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="n">y_ki</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">timestamps_start_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">timestamps_end_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">wbc</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">y_ki</span> <span class="o">-</span>  <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y_ki</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])))]</span>
-        
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wbc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
+            <span class="n">y_ki</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">timestamps_start_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">&amp;</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sz_onsets</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">timestamps_end_forecast</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">wbc</span> <span class="o">+=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">y_ki</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y_ki</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">forecasts</span><span class="p">[</span><span class="n">binned_indx</span><span class="p">])))]</span>
 
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wbc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_compute_BS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">bin_edges</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;Internal method that computes the Brier score, through the decomposition proposed in [Stephenson2008]_.&#39;&#39;&#39;</span>

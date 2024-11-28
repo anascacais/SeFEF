@@ -6,7 +6,7 @@ sefef.labeling
 This module contains functions to automatically label samples according to the desired pre-ictal duration and prediction latency.
 
 :copyright: (c) 2024 by Ana Sofia Carmo
-:license: MIT License, see LICENSE for more details.
+:license: BSD 3-clause License, see LICENSE for more details.
 """
 
 
@@ -38,7 +38,7 @@ def add_annotations(h5dataset, sz_onsets_ts, preictal_duration=3600, prediction_
     -------
     None, but adds a dataset instance to the h5dataset file object.
     '''
-    if 'timestamps' not in h5dataset.keys(): 
+    if 'timestamps' not in h5dataset.keys():
         raise KeyError('HDF5 file does not contain a "timestamps" dataset, which should contain the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).')
 
     if 'annotations' in h5dataset.keys():

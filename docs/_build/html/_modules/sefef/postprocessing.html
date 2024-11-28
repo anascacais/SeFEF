@@ -5,14 +5,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>sefef.postprocessing &mdash; SeFEF 0.0.1 documentation</title>
+  <title>sefef.postprocessing &mdash; SeFEF 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
 
   
+    <link rel="shortcut icon" href="../../_static/sefef-icon.ico"/>
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -30,6 +31,7 @@
           
           <a href="../../index.html">
             
+              <img src="../../_static/sefef-logo.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
@@ -77,12 +79,13 @@
 <span class="sd">Author: Ana Sofia Carmo</span>
 
 <span class="sd">:copyright: (c) 2024 by Ana Sofia Carmo</span>
-<span class="sd">:license: MIT License, see LICENSE for more details.</span>
+<span class="sd">:license: BSD 3-clause License, see LICENSE for more details.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="c1"># third-party</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
 
 <div class="viewcode-block" id="Forecast">
 <a class="viewcode-back" href="../../sefef.html#sefef.postprocessing.Forecast">[docs]</a>
@@ -158,7 +161,8 @@
 
         <span class="n">final_proba</span> <span class="o">=</span> <span class="n">smooth_proba</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">forecast_horizon</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="n">origin2param</span><span class="p">[</span><span class="n">origin</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
         <span class="c1"># remove forecasts with insufficient predictions (last)</span>
-        <span class="n">final_proba</span> <span class="o">=</span> <span class="n">final_proba</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:((</span><span class="n">pred_proba</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">pred_proba</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">//</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">forecast_horizon</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">))]</span>
+        <span class="n">final_proba</span> <span class="o">=</span> <span class="n">final_proba</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:((</span><span class="n">pred_proba</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">pred_proba</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">//</span>
+                                         <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">forecast_horizon</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">))]</span>
 
         <span class="k">return</span> <span class="n">final_proba</span><span class="o">.</span><span class="n">pred_proba</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="p">(</span><span class="n">final_proba</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int64&#39;</span><span class="p">)</span> <span class="o">//</span> <span class="mi">10</span><span class="o">**</span><span class="mi">9</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span></div>
 </div>

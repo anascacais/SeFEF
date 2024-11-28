@@ -7,12 +7,13 @@ This module contains functions to process individual predicted probabilities int
 Author: Ana Sofia Carmo
 
 :copyright: (c) 2024 by Ana Sofia Carmo
-:license: MIT License, see LICENSE for more details.
+:license: BSD 3-clause License, see LICENSE for more details.
 """
 
 # third-party
 import pandas as pd
 import numpy as np
+
 
 class Forecast:
     ''' Stores the forecasts made by the model and processes them.
@@ -81,6 +82,7 @@ class Forecast:
 
         final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin], label='right').max()
         # remove forecasts with insufficient predictions (last)
-        final_proba = final_proba.iloc[:((pred_proba.index[-1] - pred_proba.index[0]) // pd.Timedelta(f'{forecast_horizon}s'))]
+        final_proba = final_proba.iloc[:((pred_proba.index[-1] - pred_proba.index[0]) //
+                                         pd.Timedelta(f'{forecast_horizon}s'))]
 
         return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('int64') // 10**9).to_numpy()
