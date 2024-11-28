@@ -5,11 +5,18 @@ with open("requirements.txt") as f:
     required = f.read().splitlines()
 
 
+def read_readme():
+    with open("README.rst", encoding="utf-8") as f:
+        return f.read()
+
+
 setup(
     name='sefef',
-    version='0.1.0',
-    license="MIT license",
+    version='1.0.0',
+    license="BSD 3-clause",
     description='SeFEF: Seizure Forecast Evaluation Framework',
+    long_description=read_readme(),
+    long_description_content_type="text/x-rst",
     readme="README.rst",
     author="Ana Sofia Carmo",
     author_email="anascacais@gmail.com",

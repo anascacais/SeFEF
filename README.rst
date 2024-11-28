@@ -1,7 +1,7 @@
 Welcome to ``SeFEF``
 ======================
 
-.. image:: docs/logo/sefef-logo.png
+.. image:: https://raw.githubusercontent.com/anascacais/sefef/main/docs/logo/sefef-logo.png
     :align: center
     :alt: SeFEF logo
 
