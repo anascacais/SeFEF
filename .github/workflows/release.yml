@@ -13,6 +13,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+      - name: Install dependencies from requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
       - name: Install pypa/build
         run: >-
           python3 -m
