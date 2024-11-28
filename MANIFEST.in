@@ -1,2 +1,4 @@
 include README.rst
 include docs/logo/sefef-logo.png
+include LICENSE
+include requirements.txt
