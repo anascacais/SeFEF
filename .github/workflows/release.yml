@@ -1,6 +1,8 @@
 name: Publish Python 🐍 distribution 📦 to PyPI
 
-on: push
+on:
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -13,10 +15,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Install dependencies from requirements.txt
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
       - name: Install pypa/build
         run: >-
           python3 -m
@@ -34,7 +32,6 @@ jobs:
   publish-to-pypi:
     name: >-
       Publish Python 🐍 distribution 📦 to PyPI
-    if: startsWith(github.ref, 'refs/tags/') # only publish to PyPI on tag pushes
     needs:
       - build
     runs-on: ubuntu-latest
