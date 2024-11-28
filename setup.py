@@ -9,7 +9,7 @@ setup(
     name='sefef',
     version='0.0.1',
     license="MIT license",
-    description='SeFEF: A Seizure Forecast Evaluation Framework',
+    description='SeFEF: Seizure Forecast Evaluation Framework',
     readme="README.rst",
     author="Ana Sofia Carmo",
     author_email="anascacais@gmail.com",
