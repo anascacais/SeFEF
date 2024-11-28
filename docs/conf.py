@@ -65,7 +65,7 @@ author = 'Ana Sofia Carmo'
 #
 # The short X.Y version.
 # Extract version from setup.py
-with open('setup.py', 'r') as f:
+with open('../setup.py', 'r') as f:
     setup_content = f.read()
 
 version_match = re.search(r"version=['\"]([^'\"]+)['\"]", setup_content)
