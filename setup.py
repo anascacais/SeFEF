@@ -7,7 +7,7 @@ with open("requirements.txt") as f:
 
 setup(
     name='sefef',
-    version='0.0.1',
+    version='0.1.0',
     license="MIT license",
     description='SeFEF: Seizure Forecast Evaluation Framework',
     readme="README.rst",
