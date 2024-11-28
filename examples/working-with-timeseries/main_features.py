@@ -10,13 +10,13 @@ from sklearn import linear_model, preprocessing
 from sefef import evaluation, labeling, postprocessing, scoring
 
 # local
-from data import get_metadata, create_hdf5_dataset
+from data import get_metadata, create_features_dataset
 from config import patient_id, data_folder_path, sampling_frequency, features2extract, metrics2compute
 
 
 def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_frequency=sampling_frequency):
 
-    preprocessed_data_path = f'MSG2022-example/data_files/preprocessed_data/{patient_id}'
+    preprocessed_data_path = f'./data_files/preprocessed_data/{patient_id}'
 
     files_metadata, sz_onsets = get_metadata(data_folder_path, patient_id)
 
@@ -34,7 +34,7 @@ def main(data_folder_path=data_folder_path, patient_id=patient_id, sampling_freq
     if not os.path.exists(os.path.join(preprocessed_data_path, f'dataset.h5')):
         if not os.path.exists(preprocessed_data_path):
             os.makedirs(preprocessed_data_path)
-        create_hdf5_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'),
+        create_features_dataset(files, dataset_filepath=os.path.join(preprocessed_data_path, f'dataset.h5'),
                             sampling_frequency=sampling_frequency, features2extract=features2extract)
 
     # SeFEF - labeling module

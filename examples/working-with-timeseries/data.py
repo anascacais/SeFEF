@@ -122,8 +122,8 @@ def get_metadata(data_folder_path, patient_id):
     return files_metadata, sz_onsets
 
 
-def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2extract):
-    ''' Create hdf5 files containing a 'train' and a 'test' dataset.
+def create_features_dataset(files, dataset_filepath, sampling_frequency, features2extract):
+    ''' Create hdf5 file where each sample point corresponds to a set of features extracted.
 
     Parameters
     ---------- 
@@ -163,6 +163,71 @@ def create_hdf5_dataset(files, dataset_filepath, sampling_frequency, features2ex
                     data, timestamps_data, channels_names, sampling_frequency)  # TODO: NOT IMPLEMETED
                 timestamps_data, data = extract_features(
                     data, timestamps_data, channels_names, features2extract, sampling_frequency)
+
+                # transform first dimension (samples) into list
+                data = np.split(data, data.shape[0], axis=0)
+                data = [np.squeeze(x, axis=0) for x in data]
+                timestamps_data = list(timestamps_data)
+
+            except RuntimeError:
+                print(f'Not enough data on {filepath}')
+                lost_files += 1
+                continue
+            except FileNotFoundError:
+                print(f'File {filepath} not found')
+                lost_files += 1
+                continue
+            except AttributeError:
+                print(f'No valid samples in {filepath}')
+                lost_files += 1
+                continue
+            except ValueError:
+                lost_files += 1
+                print(f'File {filepath} could not be open.')
+                continue
+
+            dataset = (timestamps_data, data)
+
+            if 'data' not in hdf.keys():
+                create_dataset(hdf, dataset)
+            else:
+                update_dataset(hdf, dataset)
+
+            print(f"Processed {i+1}/{len(files)}", end="\r")
+
+        print(f'\n{lost_files} out of {len(files)} were ignored.')
+
+
+
+def create_timeseries_dataset(files, dataset_filepath, sampling_frequency):
+    ''' Create hdf5 file where each sample corresponds to a set of time series.
+
+    Parameters
+    ---------- 
+    files : list
+        Contains the complete path for the files to include in the dataset.
+    dataset_filepath : str
+        Complete path to the hdf5 file.
+    sampling_frequency : int
+        Frequency at which the data is stored in each file.
+
+    Returns
+    -------
+    None
+    '''
+
+    with h5py.File(dataset_filepath, 'w') as hdf:
+
+        lost_files = 0
+
+        for i, filepath in enumerate(files):
+
+            try:
+                timestamps_data, data, channels_names, new_sampling_frequency = read_and_segment(
+                    filepath, fs=sampling_frequency, decimate_factor=8)
+                timestamps_data, data = preprocess(data, timestamps_data, channels_names, new_sampling_frequency)
+                timestamps_data, data = quality_control(
+                    data, timestamps_data, channels_names, sampling_frequency)  # TODO: NOT IMPLEMETED
 
                 # transform first dimension (samples) into list
                 data = np.split(data, data.shape[0], axis=0)
