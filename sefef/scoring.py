@@ -28,8 +28,8 @@ class Scorer:
     ----------  
     metrics2compute : list<str>
         List of metrics to compute. The metrics can be either deterministic or probabilistic and metric names should be the ones from the following list:
-        - Deterministic: "Sen" (i.e. sensitivity), "FPR" (i.e. false positive rate), "TiW" (i.e. time in warning), "AUC-TiW" (i.e. area under the curve of Sen vs TiW). 
-        - Probabilistic: "resolution", "reliability" or "BS" (i.e. Brier score), "skill" or "BSS" (i.e. Brier skill score).    
+        - Deterministic: "Sen" (i.e. sensitivity), "FPR" (i.e. false positive rate), "TiW" (i.e. time in warning), "AUC_TiW" (i.e. area under the curve of Sen vs TiW). 
+        - Probabilistic: "resolution", "reliability", "BS" (i.e. Brier score), "skill" or "BSS" (i.e. Brier skill score).    
     sz_onsets : array-like, shape (#seizures, ), dtype "int64"
         Contains the Unix timestamps, in seconds, for the start of each seizure onset.
     forecast_horizon : int
@@ -68,7 +68,7 @@ class Scorer:
         self.hist_prior_prob = hist_prior_prob
         self.performance = {}
 
-        self.metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC-TiW': self._compute_AUC, 'resolution': self._compute_resolution,
+        self.metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC_TiW': self._compute_AUC, 'resolution': self._compute_resolution,
                                  'reliability': self._compute_reliability, 'calibration': self._compute_reliability, 'BS': self._compute_BS,  'skill': self._compute_skill, 'BSS': self._compute_skill}
 
     def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_frequency', num_bins=10, draw_diagram=True):
@@ -106,7 +106,7 @@ class Scorer:
             if metric_name in ['Sen', 'FPR', 'TiW']:
                 tp, fp, fn = self._get_counts(forecasts, timestamps, threshold)
                 self.performance[metric_name] = self.metrics2function[metric_name](tp, fp, fn, forecasts)
-            elif metric_name == 'AUC-TiW':
+            elif metric_name == 'AUC_TiW':
                 self.performance[metric_name] = self.metrics2function[metric_name](forecasts, timestamps, threshold)
             elif metric_name in ['resolution', 'reliability', 'calibration', 'BS', 'skill', 'BSS']:
                 bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
