@@ -113,6 +113,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
 
 
 def html_modelcard_formating(contents):
+    '''Courtesy of ChatGPT'''
     return f"""
 <!DOCTYPE html>
 <html lang="en">
