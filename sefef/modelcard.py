@@ -7,20 +7,24 @@ from typing import Optional
 
 @dataclasses.dataclass
 class ModelPerformance:
-    Sen: Optional[float] = None
-    FPR: Optional[float] = None
-    TiW: Optional[float] = None
-    AUC_TiW: Optional[float] = None
-    resolution: Optional[float] = None
-    reliability: Optional[float] = None
-    BS: Optional[float] = None
-    BSS: Optional[float] = None
+    Sen: Optional[str] = None
+    FPR: Optional[str] = None
+    TiW: Optional[str] = None
+    AUC_TiW: Optional[str] = None
+    resolution: Optional[str] = None
+    reliability: Optional[str] = None
+    BS: Optional[str] = None
+    BSS: Optional[str] = None
+    skill: Optional[str] = None
 
 
 @dataclasses.dataclass
 class ModelDetails:
     name: Optional[str] = None
     date: Optional[str] = None
+    description: Optional[str] = None
+    forecast_horizon: Optional[int] = None
+    decision_thr:  Optional[str] = None
 
 
 @dataclasses.dataclass
@@ -33,14 +37,15 @@ class ModelTraining:
 @dataclasses.dataclass
 class ModelEvaluation:
     dataset: Optional[str] = None
-    motivation: Optional[str] = None
+    approach: Optional[str] = None
     preprocessing: Optional[str] = None
 
 
 @dataclasses.dataclass
-class ModelMetrics:
-    performance: Optional[ModelPerformance] = None
-    decision_thr: Optional[float] = None
+class ModelPostprocessing:
+    description: Optional[str] = None
+    smooth_win: Optional[int] = None
+    forecast_horizon: Optional[int] = None
 
 
 class ModelCard:
@@ -70,11 +75,12 @@ class ModelCard:
     .. [Mitchell2019] Margaret Mitchell, Simone Wu, Andrew Zaldivar, Parker Barnes, Lucy Vasserman, Ben Hutchinson, Elena Spitzer, Inioluwa Deborah Raji, and Timnit Gebru. 2019. Model Cards for Model Reporting. In Proceedings of the Conference on Fairness, Accountability, and Transparency (FAT* '19). Association for Computing Machinery, New York, NY, USA, 220-229. https://doi.org/10.1145/3287560.3287596
     '''
 
-    def __init__(self, details={}, training={}, evaluation={}, metrics={}):
+    def __init__(self, details={}, training={}, evaluation={}, postprocessing={}, performance={}):
         self.details = ModelDetails(**details)
         self.training = ModelTraining(**training)
         self.evaluation = ModelEvaluation(**evaluation)
-        self.metrics = ModelMetrics(**metrics)
+        self.postprocessing = ModelPostprocessing(**postprocessing)
+        self.performance = ModelPerformance(**performance)
 
     def update(self, data):
         ''' Receives a dictionary with new data to update the ModelCard instance. Only updates the attributes present in the dictionary, up to 2 levels, i.e. the attributes of ModelCard or the attributes of ModelDetails, ModelTraining, ModelEvaluation, or ModelMetrics. 
@@ -94,9 +100,12 @@ class ModelCard:
         if 'evaluation' in data.keys():
             for key, value in data['evaluation'].items():
                 setattr(self.evaluation, key, value)
-        if 'metrics' in data.keys():
-            for key, value in data['metrics'].items():
-                setattr(self.metrics, key, value)
+        if 'postprocessing' in data.keys():
+            for key, value in data['postprocessing'].items():
+                setattr(self.postprocessing, key, value)
+        if 'performance' in data.keys():
+            for key, value in data['performance'].items():
+                setattr(self.performance, key, value)
 
     def to_dict(self):
         ''' Recursively serialize ModelCard and its attributes into a dictionary. 
@@ -139,6 +148,8 @@ class ModelCard:
         data = self.to_dict()
         if filename is None:
             filename = self.details.name
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
         with open(os.path.join(folder_path, f'{filename}.json'), 'w') as f:
             json.dump(data, f)
 
