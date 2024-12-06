@@ -156,6 +156,12 @@ class ModelCard:
         with open(os.path.join(folder_path, f'{filename}.json'), 'w') as f:
             json.dump(data, f)
 
+    def is_image(file_path):
+        """Check if the file is an image based on its extension."""
+        image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp']
+        file_ext = os.path.splitext(file_path)[1].lower()
+        return file_ext in image_extensions
+
     @classmethod
     def dict_to_html(cls, d, level=2):
         """Convert a nested dictionary to an HTML string with Markdown-like structure."""
@@ -172,8 +178,11 @@ class ModelCard:
                 for item in value:
                     html += f"  <li>{item}</li>\n"
                 html += "</ul>\n"
+            elif isinstance(value, str) and cls.is_image(value):
+                # If the value is an image file path, convert it to an <img> tag
+                html += f"<h{level}>{key}</h{level}>\n<img src='{value}' alt='{key}' style='max-width: 100%; height: auto; margin-top: 5mm;'>\n"
             else:
-                # Treat non-dict, non-list values as simple list items
+                # Otherwise, treat it as a simple list item
                 html += f"<ul>\n  <li>{key}: {value}</li>\n</ul>\n"
         return html
 

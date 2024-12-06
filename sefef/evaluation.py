@@ -11,6 +11,7 @@ This module contains functions to implement time-series cross validation (TSCV).
 
 # third-party
 import pandas as pd
+import os
 import numpy as np
 import plotly.graph_objects as go
 
@@ -230,7 +231,7 @@ class TimeSeriesCV:
 
         return dataset.iloc[cutoff_ind].name
 
-    def plot(self, dataset):
+    def plot(self, dataset, folder_path=None, filename=None):
         ''' Plots the TSCV folds with the available data.
 
         Parameters
@@ -280,6 +281,11 @@ class TimeSeriesCV:
             showlegend=False,
             plot_bgcolor='white')
         fig.show()
+
+        if folder_path is not None:
+            if not os.path.exists(folder_path):
+                os.mkdir(folder_path)
+            fig.write_image(os.path.join(folder_path, filename))
 
     def _handle_missing_data(self, dataset, ind):
         """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
