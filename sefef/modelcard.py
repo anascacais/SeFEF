@@ -1,4 +1,5 @@
 # built-in
+import os
 import json
 import dataclasses
 from typing import Optional
@@ -58,41 +59,102 @@ class ModelCard:
 
     Methods
     -------
-    to_json() :
-        Description
-    save() :
-        Description
+    update(data) :
+        Receives a dictionary with new data to update the ModelCard instance. Only updates the attributes present in the dictionary, up to 2 levels, i.e. the attributes of ModelCard or the attributes of ModelDetails, ModelTraining, ModelEvaluation, or ModelMetrics. 
+    to_dict() :
+        Recursively serializes ModelCard and its attributes into a dictionary.
+    save(folder_path, filename[optional]) :
+        Saves the contents of ModelCard as JSON. If "filename" is not provided, ModelCard.ModelDetails.name will be used as the file name, i.e. "folder_path/name.json".
     References
     ----------
     .. [Mitchell2019] Margaret Mitchell, Simone Wu, Andrew Zaldivar, Parker Barnes, Lucy Vasserman, Ben Hutchinson, Elena Spitzer, Inioluwa Deborah Raji, and Timnit Gebru. 2019. Model Cards for Model Reporting. In Proceedings of the Conference on Fairness, Accountability, and Transparency (FAT* '19). Association for Computing Machinery, New York, NY, USA, 220-229. https://doi.org/10.1145/3287560.3287596
     '''
 
-    def __init__(self, details=None, training=None, evaluation=None, metrics=None):
+    def __init__(self, details={}, training={}, evaluation={}, metrics={}):
         self.details = ModelDetails(**details)
         self.training = ModelTraining(**training)
         self.evaluation = ModelEvaluation(**evaluation)
         self.metrics = ModelMetrics(**metrics)
 
-    def to_json(self):
-        pass
+    def update(self, data):
+        ''' Receives a dictionary with new data to update the ModelCard instance. Only updates the attributes present in the dictionary, up to 2 levels, i.e. the attributes of ModelCard or the attributes of ModelDetails, ModelTraining, ModelEvaluation, or ModelMetrics. 
 
-    def from_json(self):
-        pass
+        Parameters
+        ---------- 
+        data : dict
+            Keys should only be included if the attributes are meant to be overwritten. 
+        '''
 
-    def save(self):
-        pass
+        if 'details' in data.keys():
+            for key, value in data['details'].items():
+                setattr(self.details, key, value)
+        if 'training' in data.keys():
+            for key, value in data['training'].items():
+                setattr(self.training, key, value)
+        if 'evaluation' in data.keys():
+            for key, value in data['evaluation'].items():
+                setattr(self.evaluation, key, value)
+        if 'metrics' in data.keys():
+            for key, value in data['metrics'].items():
+                setattr(self.metrics, key, value)
+
+    def to_dict(self):
+        ''' Recursively serialize ModelCard and its attributes into a dictionary. 
+
+        Returns
+        -------
+        result : dict
+            Nested dictionary with ModelCard attributes and respective contents. 
+        '''
+        def serialize(obj):
+            """Helper function to serialize nested objects."""
+            if hasattr(obj, "__dict__"):  # Check if the object has attributes
+                result = {}
+                for key, value in vars(obj).items():
+                    if hasattr(value, "__dict__"):  # If it's another object, serialize it
+                        result[key] = serialize(value)
+                    elif isinstance(value, dict):  # Handle dictionary attributes
+                        result[key] = {k: serialize(v) if hasattr(v, "__dict__") else v for k, v in value.items()}
+                    elif isinstance(value, (list, tuple)):  # Handle list or tuple attributes
+                        result[key] = [serialize(item) if hasattr(item, "__dict__") else item for item in value]
+                    else:  # For primitive types
+                        result[key] = value
+                return result
+            elif isinstance(obj, (list, tuple)):  # If it's a list or tuple
+                return [serialize(item) if hasattr(item, "__dict__") else item for item in obj]
+            else:
+                return obj  # Return primitive types as is
+
+        # Start serialization from `self`
+        return serialize(self)
+
+    def save(self, folder_path, filename=None):
+        ''' Saves the contents of ModelCard as JSON. If "filename" is not provided, ModelCard.ModelDetails.name will be used as the file name, i.e. "folder_path/name.json".
+
+        Parameters
+        ---------- 
+        folder_path : str
+            Path to the folder where the contents of the ModelCard instance should be saved. 
+        '''
+        data = self.to_dict()
+        if filename is None:
+            filename = self.details.name
+        with open(os.path.join(folder_path, f'{filename}.json'), 'w') as f:
+            json.dump(data, f)
 
 
-def load_from_json():
-    pass
+def model_card_from_json(filepath):
+    ''' Creates a ModelCard from a json-serializable file (nested dictionaries). Keys must be the same as the ModelCard attributes.
 
+    Parameters
+    ---------- 
+    filepath : str
+        Path to the JSON file containing the desired model card data.
 
-# if __name__ == '__main__':
-#     js = '''{"details": {"name": "model_name", "date": "06/12/2024"},
-#     "training": {"dataset": "Menstuation Dataset", "preprocessing": "Description of preprocessing"},
-#     "evaluation": {"dataset": "Menstuation Dataset", "preprocessing": "Description of preprocessing"}}'''
-
-#     j = json.loads(js)
-#     print(j)
-#     u = ModelCard(**j)
-#     print(u)
+    Returns
+    -------
+    result : ModelCard
+    '''
+    with open(filepath) as f:
+        data = json.load(f)
+    return ModelCard(**data)
