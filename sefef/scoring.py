@@ -29,7 +29,7 @@ class Scorer:
     metrics2compute : list<str>
         List of metrics to compute. The metrics can be either deterministic or probabilistic and metric names should be the ones from the following list:
         - Deterministic: "Sen" (i.e. sensitivity), "FPR" (i.e. false positive rate), "TiW" (i.e. time in warning), "AUC-TiW" (i.e. area under the curve of Sen vs TiW). 
-        - Probabilistic: "resolution", "reliability" or "BS" (i.e. Brier score), "skill" or "BSS" (i.e. Brier skill score).    
+        - Probabilistic: "resolution", "reliability", "BS" (i.e. Brier score), "skill" or "BSS" (i.e. Brier skill score).    
     sz_onsets : array-like, shape (#seizures, ), dtype "int64"
         Contains the Unix timestamps, in seconds, for the start of each seizure onset.
     forecast_horizon : int

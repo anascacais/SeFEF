@@ -22,9 +22,10 @@ def hex_to_rgba(h, alpha):
     '''Converts color value in hex format to rgba format with alpha transparency'''
     return tuple([int(h.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)] + [alpha])
 
+
 def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#FF0000'):
     ''' Fade (interpolate) from color c1 to c2 with a non-linear transformation, according to the provided threshold.
-    
+
     Parameters
     ---------- 
     ll_color, lh_color, hl_color, hh_color : any format supported by matplotlib, e.g., 'blue', '#FF0000'
@@ -32,7 +33,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         Value between 0 and 1 corresponding to the probability of a seizure happening.
     thr : float64
         Value between 0 and 1 corresponding to the threshold 
-        
+
     Returns
     -------
         A hex string representing the blended color.
@@ -46,12 +47,11 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - prob/thr) * ll_color + (prob/thr) * lh_color)
     else:
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
-                          
 
 
 def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
     ''' Provide visualization of forecasts
-    
+
     Parameters
     ---------- 
     forecasts : array-like, shape (#forecasts, ), dtype "float64"
@@ -62,7 +62,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
         Contains the unix timestamps (in seconds) of the onsts of seizures. 
     high_likelihood_thr : float64
         Value between 0 and 1 corresponding to the threshold of high-likelihood.
-    ''' 
+    '''
     fig = go.Figure()
 
     y_values = np.linspace(start=0, stop=1, num=100)
@@ -82,7 +82,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
             layer="below",
         )
     fig.add_trace(go.Scatter(
-        x=pd.to_datetime(ts, unit='s'), y=forecasts, 
+        x=pd.to_datetime(ts, unit='s'), y=forecasts,
         mode='lines',
         line_color=COLOR_PALETTE[2],
         line_width=3
@@ -95,11 +95,11 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
         textfont=dict(
             size=16,
             color='white'  # Set the color of the Unicode text here
-        ) 
+        )
     ))
 
     fig.add_hline(y=high_likelihood_thr, line_width=1, line_color='#FF0000')
-    
+
     fig.update_yaxes(
         gridcolor='lightgrey',
         tickfont=dict(size=12),
@@ -110,5 +110,3 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
         showlegend=False,
         plot_bgcolor='white')
     fig.show()
-
-
