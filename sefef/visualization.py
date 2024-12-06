@@ -110,3 +110,136 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
         showlegend=False,
         plot_bgcolor='white')
     fig.show()
+
+
+def html_modelcard_formating(contents):
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        /* Resetting some default browser styles */
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        /* A4 page formatting */
+        @page {{
+            size: A4;
+            margin: 20mm;
+        }}
+
+        body {{
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            font-size: 12pt;
+            color: #333333;
+            background-color: #f9f9f9;
+            padding-top: 10mm;
+            padding-left: 20mm;
+            padding-right: 20mm;
+        }}
+
+        h2, h3, h4 {{
+            margin-top: 10mm;
+            font-weight: 700;
+            color: #2c3e50;
+        }}
+
+        h2 {{
+            font-size: 18pt;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 5px;
+        }}
+
+        h3 {{
+            font-size: 16pt;
+            margin-top: 8mm;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }}
+
+        h4 {{
+            font-size: 14pt;
+            margin-top: 5mm;
+            color: #34495e;
+        }}
+
+        ul {{
+            padding-left: 20px;
+            margin-top: 5mm;
+        }}
+
+        li {{
+            margin-bottom: 5mm;
+            font-size: 12pt;
+        }}
+
+        p {{
+            margin-top: 5mm;
+            font-size: 12pt;
+            line-height: 1.6;
+        }}
+
+        /* Styling for bullet points */
+        ul li {{
+            list-style-type: disc;
+        }}
+
+        /* Add some padding and margins to structure content */
+        .content-wrapper {{
+            margin-bottom: 20mm;
+        }}
+
+        .content-wrapper h2 {{
+            margin-top: 10mm;
+        }}
+
+        /* Page-specific styles */
+        @media print {{
+            body {{
+                width: 210mm;
+                height: 297mm;
+                padding: 20mm;
+                margin: 0;
+            }}
+
+            h2 {{
+                font-size: 16pt;
+                page-break-before: always;
+            }}
+
+            h3 {{
+                font-size: 14pt;
+            }}
+
+            ul {{
+                list-style-type: disc;
+            }}
+
+            /* Ensure content is spaced out correctly across pages */
+            .content-wrapper {{
+                page-break-inside: avoid;
+                margin-bottom: 10mm;
+            }}
+
+            .content-wrapper:last-child {{
+                page-break-after: auto;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        {contents}
+    </div>
+</body>
+</html>
+"""

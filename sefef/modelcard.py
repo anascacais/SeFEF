@@ -4,6 +4,9 @@ import json
 import dataclasses
 from typing import Optional
 
+# sefef
+from sefef.visualization import html_modelcard_formating
+
 
 @dataclasses.dataclass
 class ModelPerformance:
@@ -152,6 +155,38 @@ class ModelCard:
             os.makedirs(folder_path)
         with open(os.path.join(folder_path, f'{filename}.json'), 'w') as f:
             json.dump(data, f)
+
+    @classmethod
+    def dict_to_html(cls, d, level=2):
+        """Convert a nested dictionary to an HTML string with Markdown-like structure."""
+        html = ""
+        for key, value in d.items():
+            if isinstance(value, dict):
+                # First level as headings (e.g., ## Title)
+                html += f"<h{level}>{key}</h{level}>\n"
+                # Recursively process nested dictionaries
+                html += cls.dict_to_html(value, level + 1)
+            elif isinstance(value, (list, tuple)):
+                # If the value is a list or tuple, treat as bullet points
+                html += f"<h{level}>{key}</h{level}>\n<ul>\n"
+                for item in value:
+                    html += f"  <li>{item}</li>\n"
+                html += "</ul>\n"
+            else:
+                # Treat non-dict, non-list values as simple list items
+                html += f"<ul>\n  <li>{key}: {value}</li>\n</ul>\n"
+        return html
+
+    def to_html(self, folder_path, filename=None):
+        """Convert the parent object's attributes (as a dictionary) to HTML."""
+        data = self.to_dict()
+        html = html_modelcard_formating(self.dict_to_html(data))
+        if filename is None:
+            filename = self.details.name
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        with open(os.path.join(folder_path, f'{filename}.html'), 'w') as f:
+            f.write(html)
 
 
 def model_card_from_json(filepath):
