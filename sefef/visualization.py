@@ -50,7 +50,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
 
 
 def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
-    ''' Provide visualization of forecasts
+    ''' Provide visualization of forecasts.
 
     Parameters
     ---------- 
@@ -67,6 +67,10 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
 
     y_values = np.linspace(start=0, stop=1, num=100)
     y_values[np.argmin(np.abs(y_values - high_likelihood_thr))] = high_likelihood_thr
+
+    # get only sz_onsets for which there are forecasts
+    sz_onsets = [onset for onset in sz_onsets if onset in ts]
+    sz_onsets_forecasts_ind = [np.argwhere(ts==onset)[0][0] for onset in sz_onsets if onset in ts]
 
     for i in range(len(y_values) - 1):
         y0 = y_values[i]
@@ -89,11 +93,11 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
     ))
 
     fig.add_trace(go.Scatter(
-        x=pd.to_datetime(sz_onsets, unit='s'), y=[(np.max(forecasts)-np.min(forecasts))/2] * len(sz_onsets),
+        x=pd.to_datetime(sz_onsets, unit='s'), y=forecasts[sz_onsets_forecasts_ind],
         mode='text',
         text=['ϟ'] * len(sz_onsets),
         textfont=dict(
-            size=16,
+            size=20,
             color='white'  # Set the color of the Unicode text here
         )
     ))
@@ -103,7 +107,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
     fig.update_yaxes(
         gridcolor='lightgrey',
         tickfont=dict(size=12),
-        range=[0, np.min([1, np.max(forecasts)+0.1])],
+        range=[0, np.min([1, np.max(forecasts)+0.05])],
     )
     fig.update_layout(
         title='Daily event likelihood',

@@ -12,7 +12,7 @@ def read_readme():
 
 setup(
     name='sefef',
-    version='1.2.0',
+    version='1.3.0',
     license="BSD 3-clause",
     description='SeFEF: Seizure Forecast Evaluation Framework',
     long_description=read_readme(),
