@@ -180,7 +180,7 @@ class ModelCard:
                 html += "</ul>\n"
             elif isinstance(value, str) and cls.is_image(value):
                 # If the value is an image file path, convert it to an <img> tag
-                html += f"<h{level}>{key}</h{level}>\n<img src='{value}' alt='{key}' style='max-width: 100%; height: auto; margin-top: 5mm;'>\n"
+                html += f"<ul><li>{key}</li>\n<img src='{value}' alt='{key}' style='max-width: 100%; height: auto; margin-top: 5mm;'>\n"
             else:
                 # Otherwise, treat it as a simple list item
                 html += f"<ul>\n  <li>{key}: {value}</li>\n</ul>\n"
