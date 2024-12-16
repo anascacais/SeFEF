@@ -8,6 +8,8 @@ This is a helper module for visualization.
 :copyright: (c) 2024 by Ana Sofia Carmo
 :license: BSD 3-clause License, see LICENSE for more details.
 """
+# built-in
+import os
 
 # third-party
 import matplotlib as mpl
@@ -49,7 +51,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
 
 
-def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
+def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, folder_path=None, filename=None):
     ''' Provide visualization of forecasts.
 
     Parameters
@@ -70,7 +72,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
 
     # get only sz_onsets for which there are forecasts
     sz_onsets = [onset for onset in sz_onsets if onset in ts]
-    sz_onsets_forecasts_ind = [np.argwhere(ts==onset)[0][0] for onset in sz_onsets if onset in ts]
+    sz_onsets_forecasts_ind = [np.argwhere(ts == onset)[0][0] for onset in sz_onsets if onset in ts]
 
     for i in range(len(y_values) - 1):
         y0 = y_values[i]
@@ -113,6 +115,12 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr):
         title='Daily event likelihood',
         showlegend=False,
         plot_bgcolor='white')
+
+    if folder_path is not None:
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+        fig.write_image(os.path.join(folder_path, filename))
+
     fig.show()
 
 
