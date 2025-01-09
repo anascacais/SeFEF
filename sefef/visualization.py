@@ -51,7 +51,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
 
 
-def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, folder_path=None, filename=None):
+def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, folder_path=None, filename=None):
     ''' Provide visualization of forecasts.
 
     Parameters
@@ -71,8 +71,9 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, folder_path=No
     y_values[np.argmin(np.abs(y_values - high_likelihood_thr))] = high_likelihood_thr
 
     # get only sz_onsets for which there are forecasts
-    sz_onsets = [onset for onset in sz_onsets if onset in ts]
-    sz_onsets_forecasts_ind = [np.argwhere(ts == onset)[0][0] for onset in sz_onsets if onset in ts]
+    ts_forecast_end = ts + forecast_horizon
+    sz_onsets = sz_onsets[np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=1)]
+    sz_onsets_forecasts_ind = np.argwhere(np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=0))[:,0]
 
     for i in range(len(y_values) - 1):
         y0 = y_values[i]
