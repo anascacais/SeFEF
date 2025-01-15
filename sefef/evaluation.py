@@ -376,6 +376,48 @@ class TimeSeriesCV:
                  h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
             )
 
+    def get_TSCV_fold(self, h5dataset, ifold):
+        ''' Returns a train set and a test set  from corresponding TSCV fold. 
+
+        Parameters
+        ---------- 
+        h5dataset : HDF5 file
+            HDF5 file object with the following datasets:
+            - "data": each entry corresponds to a sample with shape (embedding shape), e.g. (#features, ) or (sample duration, #channels) 
+            - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
+            - "annotations": contains the labels (0: interictal, 1: preictal) for each sample in the "data" dataset, with shape (#samples, ).
+            - "sz_onsets": contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). 
+        ifold : int
+            Index corresponding to TSCV fold.
+
+        Returns
+        -------
+        tuple: 
+            - ((train_data, train_annotations, train_timestamps), (test_data, test_sz_onsets, test_timestamps))
+            - Where:
+                - "[]_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
+                - "[]_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
+                - "[]_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
+                - "[]_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
+        '''
+        timestamps = h5dataset['timestamps'][()]
+        sz_onsets = h5dataset['sz_onsets'][()]
+
+        train_start_ts, test_start_ts, test_end_ts = self.split_ind_ts[ifold,:].tolist()
+
+        train_indx = np.where(np.logical_and(timestamps >= train_start_ts, timestamps < test_start_ts))
+        test_indx = np.where(np.logical_and(timestamps >= test_start_ts, timestamps < test_end_ts))
+
+        train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
+        test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
+
+        return (
+            (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
+                h5dataset['timestamps'][train_indx], sz_onsets[train_sz_indx]),
+            (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx],
+                h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
+        )
+
 
 class Dataset:
     ''' Create a Dataset with metadata on the data that will be used for training and testing
