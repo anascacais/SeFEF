@@ -51,7 +51,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
 
 
-def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, folder_path=None, filename=None):
+def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None):
     ''' Provide visualization of forecasts.
 
     Parameters
@@ -74,7 +74,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     ts_forecast_end = ts + forecast_horizon
     sz_onsets = sz_onsets[np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=1)]
     sz_onsets_forecasts_ind = np.argwhere(np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=0))[:,0]
-
+    
     for i in range(len(y_values) - 1):
         y0 = y_values[i]
         y1 = y_values[i + 1]
@@ -88,8 +88,14 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
             line_width=0,  # No border
             layer="below",
         )
+
+    df_start = pd.DataFrame({'ts': ts, 'forecasts': forecasts})
+    df_end = df_start.copy()
+    df_end['ts'] += forecast_horizon - 1
+    df = pd.concat([df_start, df_end]).sort_values('ts').reset_index(drop=True)
+
     fig.add_trace(go.Scatter(
-        x=pd.to_datetime(ts, unit='s'), y=forecasts,
+        x=pd.to_datetime(df['ts'], unit='s'), y=df['forecasts'],
         mode='lines',
         line_color=COLOR_PALETTE[2],
         line_width=3
@@ -113,7 +119,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         range=[0, np.min([1, np.max(forecasts)+0.05])],
     )
     fig.update_layout(
-        title='Daily event likelihood',
+        title=title,
         showlegend=False,
         plot_bgcolor='white')
 
