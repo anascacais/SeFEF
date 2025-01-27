@@ -231,13 +231,15 @@ class TimeSeriesCV:
 
         return dataset.iloc[cutoff_ind].name
 
-    def plot(self, dataset, folder_path=None, filename=None):
+    def plot(self, dataset, folder_path=None, filename=None, mode='lines'):
         ''' Plots the TSCV folds with the available data.
 
         Parameters
         ---------- 
         dataset : Dataset
             Instance of Dataset.
+        mode : str
+            Trace scatter mode ("lines" or "markers"), for sparse data, "markers" is a more suitable option, despite being heavier to plot.
         '''
         if self.split_ind_ts is None:
             raise AttributeError(
@@ -245,18 +247,20 @@ class TimeSeriesCV:
 
         fig = go.Figure()
 
+        file_duration = dataset.metadata['total_duration'].iloc[0]
+
         for ifold in range(self.n_folds):
 
             train_set = dataset.metadata.loc[self.split_ind_ts[ifold, 0]: self.split_ind_ts[ifold, 1]]
             test_set = dataset.metadata.loc[self.split_ind_ts[ifold, 1]: self.split_ind_ts[ifold, 2]]
 
             # handle missing data between files
-            train_set = self._handle_missing_data(train_set, ifold+1)
-            test_set = self._handle_missing_data(test_set, ifold+1)
+            train_set = self._handle_missing_data(train_set, ifold+1, file_duration)
+            test_set = self._handle_missing_data(test_set, ifold+1, file_duration)
 
             # add existant data
-            fig.add_trace(self._get_scatter_plot(train_set, color=COLOR_PALETTE[0]))
-            fig.add_trace(self._get_scatter_plot(test_set, color=COLOR_PALETTE[1]))
+            fig.add_trace(self._get_scatter_plot(train_set, color=COLOR_PALETTE[0], mode=mode))
+            fig.add_trace(self._get_scatter_plot(test_set, color=COLOR_PALETTE[1], mode=mode))
 
             # add seizures
             fig.add_trace(self._get_scatter_plot_sz(
@@ -287,41 +291,14 @@ class TimeSeriesCV:
                 os.mkdir(folder_path)
             fig.write_image(os.path.join(folder_path, filename))
 
-    def _handle_missing_data(self, dataset, ind):
+    def _handle_missing_data(self, dataset_no_nan, ind, duration):
         """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
-
-        # Create row for nan after files that are not contiguous (after file duration)
-        missing_data = dataset[(dataset.index.diff()[1:] > dataset['total_duration']
-                                [:-1]).tolist() + [False]].astype({'sz_onset': 'Int64'})
-        missing_data.set_index(missing_data.index + missing_data['total_duration'], inplace=True)
-        missing_data.iloc[:, :] = ['', 0, np.nan]
-
+        
+        dataset = dataset_no_nan.copy()
+        dataset.index = pd.to_datetime(dataset.index, unit='s')
         dataset.insert(0, 'data', ind)
-        missing_data.insert(0, 'data', np.nan)
-
-        # Convert timestamp to datetime
-        dataset.index = pd.to_datetime(dataset.index, unit='s', utc=True)
-        missing_data.index = pd.to_datetime(missing_data.index, unit='s', utc=True)
-
-        dataset = pd.concat([dataset, missing_data], ignore_index=False)
-        dataset.sort_index(inplace=True)
-
+        dataset = dataset.asfreq(freq=f'{duration}s')
         return dataset
-
-    def _get_scatter_plot(self, dataset, color):
-        """Internal method that returns a line-scatter-plot where data exists."""
-        return go.Scatter(
-            x=dataset.index,
-            y=dataset.data,
-            mode='lines',
-            line={
-                'color': 'rgba' + str(hex_to_rgba(
-                    h=color,
-                    alpha=1
-                )),
-                'width': 7
-            }
-        )
 
     def _get_scatter_plot_sz(self, dataset, color):
         """Internal method that returns a marker-scatter-plot where sz onsets exist."""
@@ -334,6 +311,28 @@ class TimeSeriesCV:
                 size=16,
                 color=color  # Set the color of the Unicode text here
             )
+        )
+
+    def _get_scatter_plot(self, dataset, color, mode):
+        """Internal method that returns a line-scatter-plot where data exists."""
+        return go.Scatter(
+            x=dataset.index,
+            y=dataset.data,
+            mode=mode,
+            marker={
+                'color': 'rgba' + str(hex_to_rgba(
+                    h=color,
+                    alpha=1
+                )),
+                'size': 5
+            },
+            line={
+                'color': 'rgba' + str(hex_to_rgba(
+                    h=color,
+                    alpha=1
+                )),
+                'width': 5
+            }
         )
 
     def iterate(self, h5dataset):
