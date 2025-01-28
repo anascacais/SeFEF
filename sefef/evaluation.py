@@ -24,6 +24,10 @@ class TimeSeriesCV:
 
     Attributes
     ---------- 
+    preictal_duration : int, defaults to 3600 (60min)
+        Duration of the period (in seconds) that will be labeled as preictal, i.e. that we expect to contain useful information for the forecast
+    prediction_latency : int, defaults to 600 (10min)
+        Latency (in seconds) of the preictal period with regards to seizure onset.
     n_min_events_train : int, defaults to 3
         Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing.
     n_min_events_test : int, defaults to 1
@@ -38,6 +42,7 @@ class TimeSeriesCV:
         Number of folds for the TSCV, determined according to the attributes set by the user and available data.
     split_ind_ts : array-like, shape (n_folds, 3)
         Contains split timestamp indices (train_start_ts, test_start_ts, test_end_ts) for each fold. Is initiated as None and populated during 'split' method.
+    
     Methods
     -------
     split(dataset, iteratively) : 
@@ -57,7 +62,10 @@ class TimeSeriesCV:
         Raised when 'plot' is called before 'split'.
     '''
 
-    def __init__(self, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None):
+    def __init__(self, preictal_duration, prediction_latency, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None):
+        self.preictal_duration = preictal_duration
+        self.prediction_latency = prediction_latency
+        
         self.n_min_events_train = n_min_events_train
         self.n_min_events_test = n_min_events_test
         self.initial_train_duration = initial_train_duration
@@ -178,9 +186,9 @@ class TimeSeriesCV:
             after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
 
             # Criteria 1: min number of events in train
-            criteria_check[0] = initial_train_set['sz_onset'].sum() >= self.n_min_events_train
+            criteria_check[0] = (initial_train_set['sz_onset'].sum() >= self.n_min_events_train & self._check_if_preictal(initial_train_set) >= self.n_min_events_train)
             # Criteria 2: min number of events in test
-            criteria_check[1] = after_train_set['sz_onset'].sum() >= self.n_min_events_test
+            criteria_check[1] = (after_train_set['sz_onset'].sum() >= self.n_min_events_test & self._check_if_preictal(after_train_set) >= self.n_min_events_test)
 
             if not all(criteria_check):
                 print(
@@ -203,6 +211,23 @@ class TimeSeriesCV:
 
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
+
+    def _check_if_preictal(self, dataset):
+        '''Internal method that counts the number of seizure onsets for which there exist preictal samples.'''
+
+        preictal_starts = dataset[dataset['sz_onset'] == 1].index.to_numpy() - self.preictal_duration - self.prediction_latency
+        preictal_ends = dataset[dataset['sz_onset'] == 1].index.to_numpy() - self.prediction_latency
+
+        # For each seizure onset, count number of samples within preictal period
+        nb_preictal_samples = np.sum(np.logical_and(
+            dataset.index.to_numpy()[:, np.newaxis] >= preictal_starts[np.newaxis, :], 
+            dataset.index.to_numpy()[:, np.newaxis] < preictal_ends[np.newaxis, :],
+            ), axis=0)
+        
+        return np.count_nonzero(nb_preictal_samples)
+
+    
+    
     def _check_criteria_split(self, dataset, cutoff_ts):
         """Internal method for iterating the cutoff timestamp for n>1 folds in order to respect the condition on the minimum number of seizures in test."""
 
@@ -216,7 +241,7 @@ class TimeSeriesCV:
             # Criteria 1: Check if there's enough data left for a test set
             criteria_check[0] = cutoff_ind <= len(dataset)
             # Criteria 2: min number of events in test
-            criteria_check[1] = test_set['sz_onset'].sum() >= self.n_min_events_test
+            criteria_check[1] = (test_set['sz_onset'].sum() >= self.n_min_events_test & self._check_if_preictal(test_set) >= self.n_min_events_test)
 
             if not all(criteria_check):
                 print(
@@ -435,10 +460,9 @@ class Dataset:
         Frequency at which the data is stored in each file.
     '''
 
-    def __init__(self, files_metadata, sz_onsets, sampling_frequency):
+    def __init__(self, files_metadata, sz_onsets):
         self.files_metadata = files_metadata.astype({'first_timestamp': 'int64', 'total_duration': 'int64'})
         self.sz_onsets = np.array(sz_onsets)
-        self.sampling_frequency = sampling_frequency
 
         self.metadata = self._get_metadata()
         self.metadata = self.metadata.astype({'filepath': str})
