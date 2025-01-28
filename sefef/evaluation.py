@@ -186,9 +186,9 @@ class TimeSeriesCV:
             after_train_set = dataset.metadata.iloc[initial_cutoff_ind:]
 
             # Criteria 1: min number of events in train
-            criteria_check[0] = (initial_train_set['sz_onset'].sum() >= self.n_min_events_train & self._check_if_preictal(initial_train_set) >= self.n_min_events_train)
+            criteria_check[0] = ((initial_train_set['sz_onset'].sum() >= self.n_min_events_train) & (self._check_if_preictal(initial_train_set) >= self.n_min_events_train))
             # Criteria 2: min number of events in test
-            criteria_check[1] = (after_train_set['sz_onset'].sum() >= self.n_min_events_test & self._check_if_preictal(after_train_set) >= self.n_min_events_test)
+            criteria_check[1] = ((after_train_set['sz_onset'].sum() >= self.n_min_events_test) & (self._check_if_preictal(after_train_set) >= self.n_min_events_test))
 
             if not all(criteria_check):
                 print(
@@ -241,7 +241,7 @@ class TimeSeriesCV:
             # Criteria 1: Check if there's enough data left for a test set
             criteria_check[0] = cutoff_ind <= len(dataset)
             # Criteria 2: min number of events in test
-            criteria_check[1] = (test_set['sz_onset'].sum() >= self.n_min_events_test & self._check_if_preictal(test_set) >= self.n_min_events_test)
+            criteria_check[1] = ((test_set['sz_onset'].sum() >= self.n_min_events_test) & (self._check_if_preictal(test_set) >= self.n_min_events_test))
 
             if not all(criteria_check):
                 print(
