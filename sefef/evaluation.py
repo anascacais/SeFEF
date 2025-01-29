@@ -417,12 +417,12 @@ class TimeSeriesCV:
         Returns
         -------
         tuple: 
-            - ((train_data, train_annotations, train_timestamps), (test_data, test_sz_onsets, test_timestamps))
+            - ((train_data, train_annotations, train_timestamps, train_sz_onsets), (test_data, test_annotations, test_timestamps, test_sz_onsets))
             - Where:
                 - "[]_data": A slice of "h5dataset["data"]", with shape (#samples, embedding shape), e.g. (#samples, #features) or (#samples, sample duration, #channels), and dtype "float32".
                 - "[]_annotations": A slice of "h5dataset["annotations"]", with shape (#samples, ) and dtype "bool".
-                - "[]_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
                 - "[]_timestamps": A slice of "h5dataset["timestamps"]", with shape (#samples, ) and dtype "int64". 
+                - "[]_sz_onsets": A slice of "h5dataset["sz_onsets"]", with shape (#sz onsets, ) and dtype "int64". 
         '''
         timestamps = h5dataset['timestamps'][()]
         sz_onsets = h5dataset['sz_onsets'][()]
