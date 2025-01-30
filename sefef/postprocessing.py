@@ -81,8 +81,5 @@ class Forecast:
         smooth_proba.index = smooth_proba.index - pd.Timedelta(f'{smooth_win}s')
 
         final_proba = smooth_proba.resample(f'{forecast_horizon}s', origin=origin2param[origin], label='right').max()
-        # remove forecasts with insufficient predictions (last)
-        final_proba = final_proba.iloc[:((pred_proba.index[-1] - pred_proba.index[0]) //
-                                         pd.Timedelta(f'{forecast_horizon}s'))]
 
         return final_proba.pred_proba.to_numpy(), (final_proba.index.astype('int64') // 10**9).to_numpy()

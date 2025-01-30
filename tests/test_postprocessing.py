@@ -26,8 +26,8 @@ class TestForecast(unittest.TestCase):
     def test_postprocess_sample_time(self):
         postprocessed, final_timestamps = self.forecast.postprocess(self.forecast_horizon, self.smooth_win, origin='sample-time')
 
-        expected_postprocessed = np.array([1, 1, 0], dtype='float64')
-        expected_final_timestamps = (np.arange(1609459620, 1609460460, self.forecast_horizon)).tolist()
+        expected_postprocessed = np.array([1, 1, 0, 0], dtype='float64')
+        expected_final_timestamps = (np.arange(1609459620, 1609461060, self.forecast_horizon)).tolist()
 
         np.testing.assert_array_equal(postprocessed, expected_postprocessed)
         np.testing.assert_array_equal(final_timestamps, expected_final_timestamps)
@@ -35,8 +35,8 @@ class TestForecast(unittest.TestCase):
     def test_postprocess_clock_time(self):
         postprocessed, final_timestamps = self.forecast.postprocess(self.forecast_horizon, self.smooth_win, origin='clock-time')
 
-        expected_postprocessed = np.array([0.5, 1, 0], dtype='float64')
-        expected_final_timestamps = (np.arange(1609459560, 1609460460, self.forecast_horizon)).tolist()
+        expected_postprocessed = np.array([0.5, 1, 0, 0], dtype='float64')
+        expected_final_timestamps = (np.arange(1609459560, 1609460700, self.forecast_horizon)).tolist()
 
         np.testing.assert_array_equal(postprocessed, expected_postprocessed)
         np.testing.assert_array_equal(final_timestamps, expected_final_timestamps)
