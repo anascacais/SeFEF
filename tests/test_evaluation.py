@@ -1,6 +1,8 @@
 import unittest
 import pandas as pd
 import numpy as np
+import h5py
+from unittest.mock import MagicMock, patch
 
 from sefef.evaluation import TimeSeriesCV, Dataset
 
@@ -8,15 +10,17 @@ class TestTimeSeriesCV(unittest.TestCase):
 
     def setUp(self):
         self.files_metadata = pd.DataFrame({
-            'filepath': ['file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', 'file6.csv'],
-            'first_timestamp': [1609459200, 1609459500, 1609459800, 1609460100, 1609460400, 1609460700],
-            'total_duration': [300, 300, 300, 300, 300, 300]  # 5 minutes per file
+            'filepath': ['file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', 'file6.csv', 'file7.csv'],
+            'first_timestamp': [1609459200, 1609459500, 1609459800, 1609460100, 1609460400, 1609460700, 1609461000],
+            'total_duration': [300, 300, 300, 300, 300, 300, 300]  # 5 minutes per file
         })
-        self.sz_onsets = [1609459800, 1609460700]
+        self.sz_onsets = [1609459800, 1609461000]
         self.preictal_duration = 300
         self.prediction_latency = 300
+        self.lead_sz_pre_interval = 900
+        self.lead_sz_post_interval = 300
         self.dataset = Dataset(self.files_metadata, self.sz_onsets)
-        self.tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1)
+        self.tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
     
     # 1. Test Initialization:  Verify that attributes are correctly initialized.
     def test_initialization(self):
@@ -31,7 +35,7 @@ class TestTimeSeriesCV(unittest.TestCase):
     # 2. Split when all is standard
     def test_split(self):
         expected_split_ind_ts = np.array([
-            [1609459200, 1609460100, 1609461000],
+            [1609459200, 1609460400, 1609461300],
         ])
         expected_n_folds = 1
         self.tscv.split(self.dataset, iteratively=False, plot=False)
@@ -49,14 +53,21 @@ class TestTimeSeriesCV(unittest.TestCase):
 
     # 4. Split when total duration of Dataset is smaller than initial_train_duration + test_duration
     def test_split_small_dataset(self):
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, initial_train_duration=1600, test_duration=300)
+        files_metadata = pd.DataFrame({
+            'filepath': ['file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', 'file6.csv'],
+            'first_timestamp': [1609459200, 1609459500, 1609459800, 1609460100, 1609460400, 1609460700],
+            'total_duration': [300, 300, 300, 300, 300, 300]  # 5 minutes per file
+        })
+        sz_onsets = [1609459800, 1609460700]
+        self.dataset = Dataset(files_metadata, sz_onsets)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, initial_train_duration=1600, test_duration=300, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
 
         with self.assertRaises(ValueError):
             tscv.split(self.dataset, iteratively=False, plot=False)
 
     # 5. Split when number of events in Dataset is smaller than n_min_events_train + n_min_events_test
     def test_split_no_events(self):
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=3, n_min_events_test=1)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=3, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
 
         with self.assertRaises(ValueError):
             tscv.split(self.dataset, iteratively=False, plot=False)
@@ -68,7 +79,8 @@ class TestTimeSeriesCV(unittest.TestCase):
             'first_timestamp': [1609459500, 1609459800, 1609460100, 1609460400, 1609460700],
             'total_duration': [300, 300, 300, 300, 300]  # 5 minutes per file
         })
-        dataset = Dataset(files_metadata, self.sz_onsets)
+        sz_onsets = [1609459800, 1609460700]
+        dataset = Dataset(files_metadata, sz_onsets)
         with self.assertRaises(ValueError):
             self.tscv.split(dataset, iteratively=False, plot=False)
 
@@ -79,50 +91,70 @@ class TestTimeSeriesCV(unittest.TestCase):
             'first_timestamp': [1609459500, 1609459800, 1609460100, 1609460400, 1609460700],
             'total_duration': [300, 300, 300, 300, 300]  # 5 minutes per file
         })
+        sz_onsets = [1609459800, 1609460700]
         expected_n_folds = 1
         expected_split_ind_ts = np.array([
-            [1609459500, 1609460100, 1609461000],
+            [1609459500, 1609460400, 1609461000],
         ])
 
-        dataset = Dataset(files_metadata, self.sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1)
+        dataset = Dataset(files_metadata, sz_onsets)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv.split(dataset, iteratively=False, plot=False)
+
+        self.assertTrue(tscv.n_folds == expected_n_folds)
+        np.testing.assert_array_equal(tscv.split_ind_ts, expected_split_ind_ts)
+
+    # 8. Split accounting for non-lead seizures
+    def test_effect_non_lead(self):
+        files_metadata = pd.DataFrame({
+            'filepath': ['file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', 'file6.csv', 'file7.csv', 'file8.csv', 'file9.csv', 'file6.csv', 'file7.csv'],
+            'first_timestamp': np.arange(1609459500, 1609462800, 300).tolist(),
+            'total_duration': [300] * 11  # 5 minutes per file
+        })
+        sz_onsets = [1609460100, 1609460700, 1609462500]
+        expected_n_folds = 1
+        expected_split_ind_ts = np.array([
+            [1609459500, 1609460700, 1609462800],
+        ])
+        dataset = Dataset(files_metadata, sz_onsets)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
         tscv.split(dataset, iteratively=False, plot=False)
 
         self.assertTrue(tscv.n_folds == expected_n_folds)
         np.testing.assert_array_equal(tscv.split_ind_ts, expected_split_ind_ts)
 
 
-    # # 6. Split when all events are within initial_train_duration
-    # def test_split_events_early(self):
-    #     expected_split_ind_ts = np.array([
-    #         [1609459200, 1609459500, 1609459800],
-    #     ])
-    #     expected_n_folds = 1
+    # 9. Iterate removing non-lead seizures from train
+    @patch("h5py.File", autospec=True)
+    def test_iterate_non_lead(self, mock_h5py_file):
+        files_metadata = pd.DataFrame({
+            'filepath': ['file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', 'file6.csv', 'file7.csv', 'file8.csv', 'file9.csv', 'file6.csv', 'file7.csv'],
+            'first_timestamp': np.arange(1609459500, 1609462800, 300).tolist(),
+            'total_duration': [300] * 11  # 5 minutes per file
+        })
+        sz_onsets = [1609460100, 1609460700, 1609462500]
 
-    #     sz_onsets = [1609459200, 1609459500]
-    #     dataset = Dataset(self.files_metadata, sz_onsets)
-    #     self.tscv.split(dataset, iteratively=False, plot=False)
+        dataset = Dataset(files_metadata, sz_onsets)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv.split(dataset, iteratively=False, plot=False)
 
-    #     self.assertTrue(self.tscv.n_folds == expected_n_folds)
-    #     np.testing.assert_array_equal(self.tscv.split_ind_ts, expected_split_ind_ts)
+        # Mock HDF5 file behavior
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        mock_file.keys.return_value = ['data', 'timestamps', 'annotations', 'sz_onsets']
+        mock_file.__getitem__.side_effect = {
+            'data': np.array([None]*11),
+            'timestamps': np.arange(1609459500, 1609462800, 300),
+            'annotations': np.array([1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0]),
+            'sz_onsets': np.array(sz_onsets),
+        }.__getitem__
+        mock_h5py_file.return_value = mock_file
+        
+        with h5py.File('test_file.h5', 'r+') as h5dataset:
+            iterator = tscv.iterate(h5dataset)
+        expected_tuple = ()
 
-
-    # # 7. Split when all events are after initial_train_duration
-    # def test_split_events_late(self):
-    #     expected_split_ind_ts = np.array([
-    #         [1609459200, 1609460700, 1609461000],
-    #     ])
-    #     expected_n_folds = 1
-
-    #     sz_onsets = [1609460400, 1609460700]
-    #     dataset = Dataset(self.files_metadata, sz_onsets)
-    #     self.tscv.split(dataset, iteratively=False, plot=False)
-
-    #     self.assertTrue(self.tscv.n_folds == expected_n_folds)
-    #     np.testing.assert_array_equal(self.tscv.split_ind_ts, expected_split_ind_ts)
-
-
-
+        self.assertEqual(list(iterator), expected_tuple)
 
 
 class TestDataset(unittest.TestCase):

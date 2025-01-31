@@ -8,6 +8,8 @@ This module contains functions to implement time-series cross validation (TSCV).
 :copyright: (c) 2024 by Ana Sofia Carmo
 :license: BSD 3-clause License, see LICENSE for more details.
 """
+# built-in
+import copy
 
 # third-party
 import pandas as pd
@@ -32,6 +34,8 @@ class TimeSeriesCV:
         Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing.
     n_min_events_test : int, defaults to 1
         Minimum number of lead seizures to include in the test set. Should guarantee at least one lead seizure is left for testing.
+    lead_sz_pre_interval : int
+        Time interval (in seconds) free f seizures by which a seizure should be preceded to be considered a lead seizure.
     initial_train_duration : int, defaults to 1/3 of total recorded duration
         Set duration of train for initial split (in seconds). 
     test_duration : int, defaults to 1/2 of 'initial_train_duration'
@@ -51,7 +55,7 @@ class TimeSeriesCV:
         - The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].
     plot(dataset) :
         Plots the TSCV folds with the available data.
-    iterate() : 
+    iterate(dataset) : 
         Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
 
     Raises
@@ -62,12 +66,14 @@ class TimeSeriesCV:
         Raised when 'plot' is called before 'split'.
     '''
 
-    def __init__(self, preictal_duration, prediction_latency, n_min_events_train=3, n_min_events_test=1, initial_train_duration=None, test_duration=None):
+    def __init__(self, preictal_duration, prediction_latency, n_min_events_train=3, n_min_events_test=1, lead_sz_pre_interval=14400, lead_sz_post_interval=3600, initial_train_duration=None, test_duration=None):
         self.preictal_duration = preictal_duration
         self.prediction_latency = prediction_latency
         
         self.n_min_events_train = n_min_events_train
         self.n_min_events_test = n_min_events_test
+        self.lead_sz_pre_interval = lead_sz_pre_interval
+        self.lead_sz_post_interval = lead_sz_post_interval
         self.initial_train_duration = initial_train_duration
         self.test_duration = test_duration
         self.method = 'expanding'
@@ -98,9 +104,10 @@ class TimeSeriesCV:
         test_end_ts : int
             Timestamp index for the end of the test set.
         """
+        dataset_lead_sz = self._get_lead_sz_dataset(dataset)
 
         if self.initial_train_duration is None:
-            total_recorded_duration = dataset.files_metadata['total_duration'].sum()
+            total_recorded_duration = dataset_lead_sz.files_metadata['total_duration'].sum()
             if total_recorded_duration == 0:
                 raise ValueError(f"Dataset is empty.")
             self.initial_train_duration = (1/3) * total_recorded_duration
@@ -109,25 +116,25 @@ class TimeSeriesCV:
             self.test_duration = (1/2) * self.initial_train_duration
 
         # Check basic conditions
-        if dataset.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
+        if dataset_lead_sz.files_metadata['total_duration'].sum() < self.initial_train_duration + self.test_duration:
             raise ValueError(
                 f"Dataset does not contain enough data to do this split. Just give up (or decrease 'initial_train_duration' ({self.initial_train_duration}) and/or 'test_duration' ({self.test_duration})).")
 
-        if dataset.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
+        if dataset_lead_sz.metadata['sz_onset'].sum() < self.n_min_events_train + self.n_min_events_test:
             raise ValueError(
                 f"Dataset does not contain the minimum number of events. Just give up (or change the value of 'n_min_events_train' ({self.n_min_events_train}) or 'n_min_events_test' ({self.n_min_events_test})).")
 
         # Get index for initial split
-        initial_cutoff_ts = self._get_cutoff_ts(dataset)
-        initial_cutoff_ts = self._check_criteria_initial_split(dataset, initial_cutoff_ts)
+        initial_cutoff_ts = self._get_cutoff_ts(dataset_lead_sz)
+        initial_cutoff_ts = self._check_criteria_initial_split(dataset_lead_sz, initial_cutoff_ts)
         print('\n')
 
         if iteratively:
             if plot:
                 raise ValueError("The variables 'iteratively' and 'plot' cannot both be set to True.")
-            return self._expanding_window_split(dataset, initial_cutoff_ts)
+            return self._expanding_window_split(dataset_lead_sz, initial_cutoff_ts)
         else:
-            for _ in self._expanding_window_split(dataset, initial_cutoff_ts):
+            for _ in self._expanding_window_split(dataset_lead_sz, initial_cutoff_ts):
                 pass
             if plot:
                 self.plot(dataset)
@@ -171,6 +178,14 @@ class TimeSeriesCV:
         cutoff_ts = dataset.metadata.index[dataset.metadata['total_duration'].cumsum() > self.initial_train_duration].tolist()[
             0]
         return cutoff_ts
+    
+    def _get_lead_sz_dataset(self, dataset):
+        '''Internal method that returns a copy of the original dataset without the non-lead seizures.'''
+        dataset_lead_sz = copy.deepcopy(dataset)
+        ts_lead_sz = self._get_lead_seizures(dataset_lead_sz.metadata)
+        ts_all_sz = dataset_lead_sz.metadata[dataset_lead_sz.metadata['sz_onset']==1].index.to_numpy()
+        dataset_lead_sz.metadata.loc[ts_all_sz[~np.any(ts_all_sz[:,np.newaxis] == ts_lead_sz[np.newaxis,:], axis=1)], 'sz_onset'] = 0
+        return dataset_lead_sz
 
     def _check_criteria_initial_split(self, dataset, initial_cutoff_ts):
         """Internal method for iterating the initial cutoff timestamp in order to respect the condition on the minimum number of seizures."""
@@ -209,37 +224,48 @@ class TimeSeriesCV:
             raise ValueError(
                 f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train' ({self.n_min_events_train}), 'initial_train_duration' ({self.initial_train_duration}), and/or 'test_duration' ({self.test_duration})).")
 
+        # Account for "lead_sz_post_interval" if split is immediately after a seizure
+        if dataset.metadata.iloc[initial_cutoff_ind-1]['sz_onset'] == 1:
+            ts_post_lead_sz = dataset.metadata.iloc[initial_cutoff_ind-1].name + self.lead_sz_post_interval 
+            initial_cutoff_ind = np.where(np.diff(np.sign(dataset.metadata.index - ts_post_lead_sz)) != 0)[0][-1] + 1
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
 
-    def _check_if_preictal(self, dataset):
+    def _check_if_preictal(self, metadata):
         '''Internal method that counts the number of seizure onsets for which there exist preictal samples.'''
 
-        preictal_starts = dataset[dataset['sz_onset'] == 1].index.to_numpy() - self.preictal_duration - self.prediction_latency
-        preictal_ends = dataset[dataset['sz_onset'] == 1].index.to_numpy() - self.prediction_latency
+        preictal_starts = metadata[metadata['sz_onset']==1].index.to_numpy() - self.preictal_duration - self.prediction_latency
+        preictal_ends = metadata[metadata['sz_onset']==1].index.to_numpy() - self.prediction_latency
 
         # For each seizure onset, count number of samples within preictal period
         nb_preictal_samples = np.sum(np.logical_and(
-            dataset.index.to_numpy()[:, np.newaxis] >= preictal_starts[np.newaxis, :], 
-            dataset.index.to_numpy()[:, np.newaxis] < preictal_ends[np.newaxis, :],
+            metadata.index.to_numpy()[:, np.newaxis] >= preictal_starts[np.newaxis, :], 
+            metadata.index.to_numpy()[:, np.newaxis] < preictal_ends[np.newaxis, :],
             ), axis=0)
         
         return np.count_nonzero(nb_preictal_samples)
 
+    def _get_lead_seizures(self, metadata):
+        '''Internal method that, from metadata returns the timestamps of lead seizures, defined by a seizure preceded by "lead_sz_pre_interval".'''
+        ts_lead_seizures = metadata[metadata['sz_onset'] == 1].index.to_numpy()
+        while not all(np.diff(ts_lead_seizures) >= self.lead_sz_pre_interval):
+            ts_lead_seizures = ts_lead_seizures[np.concat((np.array([True]), (np.diff(ts_lead_seizures) >= self.lead_sz_pre_interval)))]
+        return ts_lead_seizures
+
+
     
-    
-    def _check_criteria_split(self, dataset, cutoff_ts):
+    def _check_criteria_split(self, metadata, cutoff_ts):
         """Internal method for iterating the cutoff timestamp for n>1 folds in order to respect the condition on the minimum number of seizures in test."""
 
         criteria_check = [False] * 2
-        cutoff_ind = dataset.index.get_loc(cutoff_ts)
+        cutoff_ind = metadata.index.get_loc(cutoff_ts)
 
         t = 0
 
         while not all(criteria_check):
-            test_set = dataset.iloc[:cutoff_ind]
+            test_set = metadata.iloc[:cutoff_ind]
             # Criteria 1: Check if there's enough data left for a test set
-            criteria_check[0] = cutoff_ind <= len(dataset)
+            criteria_check[0] = cutoff_ind <= len(metadata)
             # Criteria 2: min number of events in test
             criteria_check[1] = ((test_set['sz_onset'].sum() >= self.n_min_events_test) & (self._check_if_preictal(test_set) >= self.n_min_events_test))
 
@@ -248,13 +274,19 @@ class TimeSeriesCV:
                     f"Initial split: failed criteria {[i+1 for i, val in enumerate(criteria_check) if not val]} (trial {t+1})", end='\r')
 
                 if not criteria_check[0]:
-                    return dataset.iloc[cutoff_ind].name
+                    return metadata.iloc[cutoff_ind].name
                 elif not criteria_check[1]:
                     cutoff_ind += 1
 
             t += 1
 
-        return dataset.iloc[cutoff_ind].name
+        # Account for "lead_sz_post_interval" if split is immediately after a seizure
+        if metadata.iloc[cutoff_ind-1]['sz_onset'] == 1:
+            ts_post_lead_sz = metadata.iloc[cutoff_ind-1].name + self.lead_sz_post_interval 
+            np.where(np.diff(np.sign(metadata.index - ts_post_lead_sz)) != 0)[0][-1]
+            cutoff_ind = np.where(np.diff(np.sign(metadata.index - ts_post_lead_sz)) != 0)[0][-1] + 1
+
+        return metadata.iloc[cutoff_ind].name
 
     def plot(self, dataset, folder_path=None, filename=None, mode='lines'):
         ''' Plots the TSCV folds with the available data.
@@ -289,7 +321,7 @@ class TimeSeriesCV:
 
             # add seizures
             fig.add_trace(self._get_scatter_plot_sz(
-                train_set[train_set['sz_onset'] == 1],
+                self._get_lead_seizures(train_set),
                 color=COLOR_PALETTE[0]
             ))
             fig.add_trace(self._get_scatter_plot_sz(
@@ -392,6 +424,8 @@ class TimeSeriesCV:
 
             train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
             test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
+
+
 
             yield (
                 (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
