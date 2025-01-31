@@ -128,14 +128,15 @@ class TestTimeSeriesCV(unittest.TestCase):
     @patch("h5py.File", autospec=True)
     def test_iterate_non_lead(self, mock_h5py_file):
         files_metadata = pd.DataFrame({
-            'filepath': ['file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', 'file6.csv', 'file7.csv', 'file8.csv', 'file9.csv', 'file6.csv', 'file7.csv'],
-            'first_timestamp': np.arange(1609459500, 1609462800, 300).tolist(),
-            'total_duration': [300] * 11  # 5 minutes per file
+            'filepath': [f'file{i}.csv' for i in range(1, 14)],
+            'first_timestamp': np.arange(1609459500, 1609459500+300*13, 300).tolist(),
+            'total_duration': [300] * 13  # 5 minutes per file
         })
-        sz_onsets = [1609460100, 1609460700, 1609462500]
+        preictal_duration = 600
+        sz_onsets = [1609460100, 1609460400, 1609461900, 1609463100]
 
         dataset = Dataset(files_metadata, sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=2, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
         tscv.split(dataset, iteratively=False, plot=False)
 
         # Mock HDF5 file behavior
@@ -143,18 +144,36 @@ class TestTimeSeriesCV(unittest.TestCase):
         mock_file.__enter__.return_value = mock_file
         mock_file.keys.return_value = ['data', 'timestamps', 'annotations', 'sz_onsets']
         mock_file.__getitem__.side_effect = {
-            'data': np.array([None]*11),
-            'timestamps': np.arange(1609459500, 1609462800, 300),
-            'annotations': np.array([1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0]),
+            'data': np.array([None]*13),
+            'timestamps': np.arange(1609459500, 1609459500+300*13, 300),
+            'annotations': np.array([1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0]),
             'sz_onsets': np.array(sz_onsets),
         }.__getitem__
         mock_h5py_file.return_value = mock_file
         
         with h5py.File('test_file.h5', 'r+') as h5dataset:
             iterator = tscv.iterate(h5dataset)
-        expected_tuple = ()
+        expected = (
+            (
+                np.array([None, None, None]),
+                np.array([1, 1, 1]),
+                np.array([1609459500, 1609461000, 1609461300]),
+                np.array([1609460100, 1609461900])
+            ),
+            (
+                np.array([None, None, None]),
+                np.array([1, 0, 0]),
+                np.array([1609462500, 1609462800, 1609463100]),
+                np.array([1609463100])
+            )
+        )
 
-        self.assertEqual(list(iterator), expected_tuple)
+        output_iterator = list(iterator)[0]
+
+        self.assertTrue(len(expected) == len(output_iterator))
+        for expected_tuple, output_tuple in zip(expected, output_iterator):
+            for exp_arr, out_arr in zip(expected_tuple, output_tuple):
+                np.testing.assert_array_equal(out_arr, exp_arr)
 
 
 class TestDataset(unittest.TestCase):
