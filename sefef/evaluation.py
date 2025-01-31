@@ -394,7 +394,7 @@ class TimeSeriesCV:
             }
         )
 
-    def iterate(self, h5dataset):
+    def iterate(self, h5dataset, remove_non_preictal_interictal_samples=True):
         ''' Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
 
         Parameters
@@ -405,6 +405,8 @@ class TimeSeriesCV:
             - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
             - "annotations": contains the labels (0: interictal, 1: preictal) for each sample in the "data" dataset, with shape (#samples, ).
             - "sz_onsets": contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). 
+        remove_non_preictal_interictal_samples : bool
+            Whether to remove samples that are neither preictal or interical, i.e. samples containing the onsets of seizures, as well as the intervals corrsponding to "prediction_latency" and "lead_sz_post_interval". 
 
         Returns
         -------
@@ -427,20 +429,21 @@ class TimeSeriesCV:
 
             train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
             test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
+            ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
 
             # Remove from train the samples that are within the start of a preictal period and the end of "lead_sz_post_interval"
-            ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
-            ts_train = h5dataset['timestamps'][train_indx]
-            not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
+            if remove_non_preictal_interictal_samples:
+                ts_train = h5dataset['timestamps'][train_indx]
+                not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
 
-            ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
-            ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
-            not_relevant_indx = np.unique(np.concat((
-                not_relevant_indx,
-                np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
-                )))
+                ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
+                ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
+                not_relevant_indx = np.unique(np.concat((
+                    not_relevant_indx,
+                    np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
+                    )))
 
-            train_indx = np.setdiff1d(train_indx, not_relevant_indx)
+                train_indx = np.setdiff1d(train_indx, not_relevant_indx)
 
             yield (
                 (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
@@ -449,7 +452,7 @@ class TimeSeriesCV:
                  h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
             )
 
-    def get_TSCV_fold(self, h5dataset, ifold):
+    def get_TSCV_fold(self, h5dataset, ifold, remove_non_preictal_interictal_samples=True):
         ''' Returns a train set and a test set  from corresponding TSCV fold. 
 
         Parameters
@@ -462,6 +465,8 @@ class TimeSeriesCV:
             - "sz_onsets": contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). 
         ifold : int
             Index corresponding to TSCV fold.
+        remove_non_preictal_interictal_samples : bool
+            Whether to remove samples that are neither preictal or interical, i.e. samples containing the onsets of seizures, as well as the intervals corrsponding to "prediction_latency" and "lead_sz_post_interval". 
 
         Returns
         -------
@@ -484,20 +489,21 @@ class TimeSeriesCV:
 
         train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
         test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
+        ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
 
         # Remove from train the samples that are within the start of a preictal period and the end of "lead_sz_post_interval"
-        ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
-        ts_train = h5dataset['timestamps'][train_indx]
-        not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
+        if remove_non_preictal_interictal_samples:
+            ts_train = h5dataset['timestamps'][train_indx]
+            not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
 
-        ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
-        ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
-        not_relevant_indx = np.unique(np.concat((
-            not_relevant_indx,
-            np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
-            )))
+            ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
+            ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
+            not_relevant_indx = np.unique(np.concat((
+                not_relevant_indx,
+                np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
+                )))
 
-        train_indx = np.setdiff1d(train_indx, not_relevant_indx)
+            train_indx = np.setdiff1d(train_indx, not_relevant_indx)
 
         return (
             (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
