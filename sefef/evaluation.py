@@ -322,9 +322,16 @@ class TimeSeriesCV:
             fig.add_trace(self._get_scatter_plot(test_set, color=COLOR_PALETTE[1], mode=mode))
 
             # add seizures
+            ts_lead_sz = self._get_lead_seizures(train_set[train_set['sz_onset'] == 1].index.to_numpy())
             fig.add_trace(self._get_scatter_plot_sz(
-                self._get_lead_seizures(train_set[train_set['sz_onset'] == 1].index.to_numpy()),
+                train_set.loc[ts_lead_sz],
                 color=COLOR_PALETTE[0]
+            ))
+            ts_non_lead_sz = train_set[train_set['sz_onset'] == 1].index.to_numpy()[~np.any(train_set[train_set['sz_onset'] == 1].index.to_numpy()[:,np.newaxis] == ts_lead_sz[np.newaxis,:], axis=1)]
+            fig.add_trace(self._get_scatter_plot_sz(
+                train_set.loc[ts_non_lead_sz],
+                color=COLOR_PALETTE[0], 
+                opacity=0.5
             ))
             fig.add_trace(self._get_scatter_plot_sz(
                 test_set[test_set['sz_onset'] == 1],
@@ -359,7 +366,7 @@ class TimeSeriesCV:
         dataset = dataset.asfreq(freq=f'{duration}s')
         return dataset
 
-    def _get_scatter_plot_sz(self, dataset, color):
+    def _get_scatter_plot_sz(self, dataset, color, opacity=1):
         """Internal method that returns a marker-scatter-plot where sz onsets exist."""
         return go.Scatter(
             x=dataset.index,
@@ -368,7 +375,9 @@ class TimeSeriesCV:
             text=['ϟ'] * len(dataset),
             textfont=dict(
                 size=16,
-                color=color  # Set the color of the Unicode text here
+                color='rgba' + str(hex_to_rgba(
+                    h=color, alpha=opacity
+                ))
             )
         )
 
