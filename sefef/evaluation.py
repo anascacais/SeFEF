@@ -229,7 +229,8 @@ class TimeSeriesCV:
         # Account for "lead_sz_post_interval" if split is immediately after a seizure
         if dataset.metadata.iloc[initial_cutoff_ind-1]['sz_onset'] == 1:
             ts_post_lead_sz = dataset.metadata.iloc[initial_cutoff_ind-1].name + self.lead_sz_post_interval 
-            initial_cutoff_ind = np.where(np.diff(np.sign(dataset.metadata.index - ts_post_lead_sz)) != 0)[0][-1] + 1
+            initial_cutoff_ind = np.where(dataset.metadata.index <= ts_post_lead_sz)[0][-1] + 1
+            
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
 
@@ -285,8 +286,9 @@ class TimeSeriesCV:
         # Account for "lead_sz_post_interval" if split is immediately after a seizure
         if metadata.iloc[cutoff_ind-1]['sz_onset'] == 1:
             ts_post_lead_sz = metadata.iloc[cutoff_ind-1].name + self.lead_sz_post_interval 
-            np.where(np.diff(np.sign(metadata.index - ts_post_lead_sz)) != 0)[0][-1]
-            cutoff_ind = np.where(np.diff(np.sign(metadata.index - ts_post_lead_sz)) != 0)[0][-1] + 1
+            cutoff_ind = np.where(metadata.index <= ts_post_lead_sz)[0][-1] + 1
+            if cutoff_ind == len(metadata):
+                cutoff_ind -= 1 
 
         return metadata.iloc[cutoff_ind].name
 
@@ -452,7 +454,7 @@ class TimeSeriesCV:
                     np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
                     )))
 
-                train_indx = np.setdiff1d(train_indx, not_relevant_indx)
+                train_indx = (np.setdiff1d(train_indx, not_relevant_indx),)
 
             yield (
                 (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
@@ -512,7 +514,7 @@ class TimeSeriesCV:
                 np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
                 )))
 
-            train_indx = np.setdiff1d(train_indx, not_relevant_indx)
+            train_indx = (np.setdiff1d(train_indx, not_relevant_indx),)
 
         return (
             (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
