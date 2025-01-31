@@ -475,6 +475,7 @@ class TimeSeriesCV:
         '''
         timestamps = h5dataset['timestamps'][()]
         sz_onsets = h5dataset['sz_onsets'][()]
+        annotations = h5dataset['annotations'][()]
 
         train_start_ts, test_start_ts, test_end_ts = self.split_ind_ts[ifold,:].tolist()
 
@@ -484,9 +485,23 @@ class TimeSeriesCV:
         train_sz_indx = np.where(np.logical_and(sz_onsets >= train_start_ts, sz_onsets < test_start_ts))
         test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
 
+        # Remove from train the samples that are within the start of a preictal period and the end of "lead_sz_post_interval"
+        ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
+        ts_train = h5dataset['timestamps'][train_indx]
+        not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
+
+        ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
+        ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
+        not_relevant_indx = np.unique(np.concat((
+            not_relevant_indx,
+            np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
+            )))
+
+        train_indx = np.setdiff1d(train_indx, not_relevant_indx)
+
         return (
             (h5dataset['data'][train_indx], h5dataset['annotations'][train_indx],
-                h5dataset['timestamps'][train_indx], sz_onsets[train_sz_indx]),
+                h5dataset['timestamps'][train_indx], ts_train_lead_sz),
             (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx],
                 h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
         )

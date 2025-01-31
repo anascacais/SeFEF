@@ -175,6 +175,57 @@ class TestTimeSeriesCV(unittest.TestCase):
             for exp_arr, out_arr in zip(expected_tuple, output_tuple):
                 np.testing.assert_array_equal(out_arr, exp_arr)
 
+    # 10. Same as previous but for analogous function
+    @patch("h5py.File", autospec=True)
+    def test_iterate_non_lead(self, mock_h5py_file):
+        files_metadata = pd.DataFrame({
+            'filepath': [f'file{i}.csv' for i in range(1, 14)],
+            'first_timestamp': np.arange(1609459500, 1609459500+300*13, 300).tolist(),
+            'total_duration': [300] * 13  # 5 minutes per file
+        })
+        preictal_duration = 600
+        sz_onsets = [1609460100, 1609460400, 1609461900, 1609463100]
+
+        dataset = Dataset(files_metadata, sz_onsets)
+        tscv = TimeSeriesCV(preictal_duration=preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=2, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv.split(dataset, iteratively=False, plot=False)
+
+        # Mock HDF5 file behavior
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        mock_file.keys.return_value = ['data', 'timestamps', 'annotations', 'sz_onsets']
+        mock_file.__getitem__.side_effect = {
+            'data': np.array([None]*13),
+            'timestamps': np.arange(1609459500, 1609459500+300*13, 300),
+            'annotations': np.array([1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0]),
+            'sz_onsets': np.array(sz_onsets),
+        }.__getitem__
+        mock_h5py_file.return_value = mock_file
+        
+        with h5py.File('test_file.h5', 'r+') as h5dataset:
+            output_tuple = tscv.get_TSCV_fold(h5dataset, 0)
+
+        expected_tuple = (
+            (
+                np.array([None, None, None]),
+                np.array([1, 1, 1]),
+                np.array([1609459500, 1609461000, 1609461300]),
+                np.array([1609460100, 1609461900])
+            ),
+            (
+                np.array([None, None, None]),
+                np.array([1, 0, 0]),
+                np.array([1609462500, 1609462800, 1609463100]),
+                np.array([1609463100])
+            )
+        )
+
+        for exp_arr, out_arr in zip(expected_tuple[0], output_tuple[0]):
+            np.testing.assert_array_equal(out_arr, exp_arr)
+        for exp_arr, out_arr in zip(expected_tuple[1], output_tuple[1]):
+            np.testing.assert_array_equal(out_arr, exp_arr)
+
+
 
 class TestDataset(unittest.TestCase):
     def setUp(self):
