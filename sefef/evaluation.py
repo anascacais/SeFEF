@@ -34,10 +34,10 @@ class TimeSeriesCV:
         Minimum number of lead seizures to include in the train set. Should guarantee at least one lead seizure is left for testing.
     n_min_events_test : int, defaults to 1
         Minimum number of lead seizures to include in the test set. Should guarantee at least one lead seizure is left for testing.
-    lead_sz_pre_interval : int
-        Time interval (in seconds) free of seizures by which a seizure should be preceded to be considered a lead seizure.
-    lead_sz_post_interval : int
+    post_sz_interval : int
         Time interval (in seconds) after a lead seizure that should be included in the same set as the corresponding seizure. This time will be removed from the train set, along with the seizure onset and prediction_latency. 
+    pre_lead_sz_interval : int
+        Time interval (in seconds) free of seizures by which a seizure should be preceded to be considered a lead seizure.
     initial_train_duration : int, defaults to 1/3 of total recorded duration
         Set duration of train for initial split (in seconds). 
     test_duration : int, defaults to 1/2 of 'initial_train_duration'
@@ -57,7 +57,7 @@ class TimeSeriesCV:
         - The test set can be obtained by metadata.loc[test_start_ts : test_end_ts].
     plot(dataset) :
         Plots the TSCV folds with the available data.
-    iterate(dataset) : 
+    iterate() : 
         Iterates over the TSCV folds and at each iteration returns a train set and a test set. 
 
     Raises
@@ -68,14 +68,15 @@ class TimeSeriesCV:
         Raised when 'plot' is called before 'split'.
     '''
 
-    def __init__(self, preictal_duration, prediction_latency, n_min_events_train=3, n_min_events_test=1, lead_sz_pre_interval=14400, lead_sz_post_interval=3600, initial_train_duration=None, test_duration=None):
+    def __init__(self, preictal_duration, prediction_latency, n_min_events_train=3, n_min_events_test=1, post_sz_interval=3600, pre_lead_sz_interval=14400, initial_train_duration=None, test_duration=None):
         self.preictal_duration = preictal_duration
         self.prediction_latency = prediction_latency
+
+        self.post_sz_interval = post_sz_interval
+        self.pre_lead_sz_interval = pre_lead_sz_interval
         
         self.n_min_events_train = n_min_events_train
         self.n_min_events_test = n_min_events_test
-        self.lead_sz_pre_interval = lead_sz_pre_interval
-        self.lead_sz_post_interval = lead_sz_post_interval
         self.initial_train_duration = initial_train_duration
         self.test_duration = test_duration
         self.method = 'expanding'
@@ -106,6 +107,7 @@ class TimeSeriesCV:
         test_end_ts : int
             Timestamp index for the end of the test set.
         """
+
         dataset_lead_sz = self._get_lead_sz_dataset(dataset)
 
         if self.initial_train_duration is None:
@@ -139,7 +141,7 @@ class TimeSeriesCV:
             for _ in self._expanding_window_split(dataset_lead_sz, initial_cutoff_ts):
                 pass
             if plot:
-                self.plot(dataset)
+                self.plot(dataset_lead_sz)
             return None
 
     def _expanding_window_split(self, dataset, initial_cutoff_ts):
@@ -181,6 +183,13 @@ class TimeSeriesCV:
             0]
         return cutoff_ts
     
+    def _get_lead_seizures(self, ts_seizures):
+        '''Internal method that, from metadata returns the timestamps of lead seizures, defined by a seizure preceded by "lead_sz_pre_interval".'''
+        ts_lead_seizures = ts_seizures.copy() 
+        while not all(np.diff(ts_lead_seizures) >= self.pre_lead_sz_interval):
+            ts_lead_seizures = ts_lead_seizures[np.concat((np.array([True]), (np.diff(ts_lead_seizures) >= self.pre_lead_sz_interval)))]
+        return ts_lead_seizures
+
     def _get_lead_sz_dataset(self, dataset):
         '''Internal method that returns a copy of the original dataset without the non-lead seizures.'''
         dataset_lead_sz = copy.deepcopy(dataset)
@@ -188,7 +197,7 @@ class TimeSeriesCV:
         ts_all_sz = dataset.metadata[dataset.metadata['sz_onset']==1].index.to_numpy()
         dataset_lead_sz.metadata.loc[ts_all_sz[~np.any(ts_all_sz[:,np.newaxis] == ts_lead_sz[np.newaxis,:], axis=1)], 'sz_onset'] = 0
         return dataset_lead_sz
-
+    
     def _check_criteria_initial_split(self, dataset, initial_cutoff_ts):
         """Internal method for iterating the initial cutoff timestamp in order to respect the condition on the minimum number of seizures."""
 
@@ -226,19 +235,19 @@ class TimeSeriesCV:
             raise ValueError(
                 f"Dataset does not comply with the conditions for this split. Just give up (or decrease 'n_min_events_train' ({self.n_min_events_train}), 'initial_train_duration' ({self.initial_train_duration}), and/or 'test_duration' ({self.test_duration})).")
 
-        # Account for "lead_sz_post_interval" if split is immediately after a seizure
+        # Account for "post_sz_interval" if split is immediately after a seizure
         if dataset.metadata.iloc[initial_cutoff_ind-1]['sz_onset'] == 1:
-            ts_post_lead_sz = dataset.metadata.iloc[initial_cutoff_ind-1].name + self.lead_sz_post_interval 
+            ts_post_lead_sz = dataset.metadata.iloc[initial_cutoff_ind-1].name + self.post_sz_interval 
             initial_cutoff_ind = np.where(dataset.metadata.index <= ts_post_lead_sz)[0][-1] + 1
-            
+
         return dataset.metadata.iloc[initial_cutoff_ind].name
 
 
     def _check_if_preictal(self, metadata):
         '''Internal method that counts the number of seizure onsets for which there exist preictal samples.'''
 
-        preictal_starts = metadata[metadata['sz_onset']==1].index.to_numpy() - self.preictal_duration - self.prediction_latency
-        preictal_ends = metadata[metadata['sz_onset']==1].index.to_numpy() - self.prediction_latency
+        preictal_starts = metadata[metadata['sz_onset'] == 1].index.to_numpy() - self.preictal_duration - self.prediction_latency
+        preictal_ends = metadata[metadata['sz_onset'] == 1].index.to_numpy() - self.prediction_latency
 
         # For each seizure onset, count number of samples within preictal period
         nb_preictal_samples = np.sum(np.logical_and(
@@ -247,14 +256,6 @@ class TimeSeriesCV:
             ), axis=0)
         
         return np.count_nonzero(nb_preictal_samples)
-
-    def _get_lead_seizures(self, ts_seizures):
-        '''Internal method that, from metadata returns the timestamps of lead seizures, defined by a seizure preceded by "lead_sz_pre_interval".'''
-        ts_lead_seizures = ts_seizures.copy() 
-        while not all(np.diff(ts_lead_seizures) >= self.lead_sz_pre_interval):
-            ts_lead_seizures = ts_lead_seizures[np.concat((np.array([True]), (np.diff(ts_lead_seizures) >= self.lead_sz_pre_interval)))]
-        return ts_lead_seizures
-
 
     
     def _check_criteria_split(self, metadata, cutoff_ts):
@@ -283,9 +284,9 @@ class TimeSeriesCV:
 
             t += 1
 
-        # Account for "lead_sz_post_interval" if split is immediately after a seizure
+        # Account for "post_sz_interval" if split is immediately after a seizure
         if metadata.iloc[cutoff_ind-1]['sz_onset'] == 1:
-            ts_post_lead_sz = metadata.iloc[cutoff_ind-1].name + self.lead_sz_post_interval 
+            ts_post_lead_sz = metadata.iloc[cutoff_ind-1].name + self.post_sz_interval 
             cutoff_ind = np.where(metadata.index <= ts_post_lead_sz)[0][-1] + 1
             if cutoff_ind == len(metadata):
                 cutoff_ind -= 1 
@@ -359,22 +360,22 @@ class TimeSeriesCV:
                 os.mkdir(folder_path)
             fig.write_image(os.path.join(folder_path, filename))
 
-    def _handle_missing_data(self, dataset_no_nan, ind, duration):
+    def _handle_missing_data(self, metadata_no_nan, ind, duration):
         """Internal method that updates the received dataset with NaN corresponding to where there are no files containing data."""
         
-        dataset = dataset_no_nan.copy()
-        dataset.index = pd.to_datetime(dataset.index, unit='s')
-        dataset.insert(0, 'data', ind)
-        dataset = dataset.asfreq(freq=f'{duration}s')
-        return dataset
+        metadata = metadata_no_nan.copy()
+        metadata.index = pd.to_datetime(metadata.index, unit='s')
+        metadata.insert(0, 'data', ind)
+        metadata = metadata.asfreq(freq=f'{duration}s')
+        return metadata
 
-    def _get_scatter_plot_sz(self, dataset, color, opacity=1):
+    def _get_scatter_plot_sz(self, metadata, color, opacity=1):
         """Internal method that returns a marker-scatter-plot where sz onsets exist."""
         return go.Scatter(
-            x=dataset.index,
-            y=dataset.data-0.1,
+            x=metadata.index,
+            y=metadata.data-0.1,
             mode='text',
-            text=['ϟ'] * len(dataset),
+            text=['ϟ'] * len(metadata),
             textfont=dict(
                 size=16,
                 color='rgba' + str(hex_to_rgba(
@@ -383,11 +384,11 @@ class TimeSeriesCV:
             )
         )
 
-    def _get_scatter_plot(self, dataset, color, mode):
+    def _get_scatter_plot(self, metadata, color, mode):
         """Internal method that returns a line-scatter-plot where data exists."""
         return go.Scatter(
-            x=dataset.index,
-            y=dataset.data,
+            x=metadata.index,
+            y=metadata.data,
             mode=mode,
             marker={
                 'color': 'rgba' + str(hex_to_rgba(
@@ -442,16 +443,16 @@ class TimeSeriesCV:
             test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
             ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
 
-            # Remove from train the samples that are within the start of a preictal period and the end of "lead_sz_post_interval"
+            # Remove from train the samples that are within the start of a preictal period and the end of "post_sz_interval"
             if remove_non_preictal_interictal_samples:
                 ts_train = h5dataset['timestamps'][train_indx]
-                not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
+                not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.post_sz_interval), axis=1))[0]
 
                 ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
                 ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
                 not_relevant_indx = np.unique(np.concat((
                     not_relevant_indx,
-                    np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
+                    np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.post_sz_interval), axis=1))][np.newaxis,:], axis=1))[0]
                     )))
 
                 train_indx = (np.setdiff1d(train_indx, not_relevant_indx),)
@@ -462,6 +463,7 @@ class TimeSeriesCV:
                 (h5dataset['data'][test_indx], h5dataset['annotations'][test_indx],
                  h5dataset['timestamps'][test_indx], sz_onsets[test_sz_indx])
             )
+
 
     def get_TSCV_fold(self, h5dataset, ifold, remove_non_preictal_interictal_samples=True):
         ''' Returns a train set and a test set  from corresponding TSCV fold. 
@@ -492,7 +494,7 @@ class TimeSeriesCV:
         timestamps = h5dataset['timestamps'][()]
         sz_onsets = h5dataset['sz_onsets'][()]
         annotations = h5dataset['annotations'][()]
-
+        
         train_start_ts, test_start_ts, test_end_ts = self.split_ind_ts[ifold,:].tolist()
 
         train_indx = np.where(np.logical_and(timestamps >= train_start_ts, timestamps < test_start_ts))
@@ -502,16 +504,16 @@ class TimeSeriesCV:
         test_sz_indx = np.where(np.logical_and(sz_onsets >= test_start_ts, sz_onsets < test_end_ts))
         ts_train_lead_sz = self._get_lead_seizures(sz_onsets[train_sz_indx])
 
-        # Remove from train the samples that are within the start of a preictal period and the end of "lead_sz_post_interval"
+        # Remove from train the samples that are within the start of a preictal period and the end of "post_sz_interval"
         if remove_non_preictal_interictal_samples:
             ts_train = h5dataset['timestamps'][train_indx]
-            not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))[0]
+            not_relevant_indx = np.where(np.any(np.logical_and(ts_train[:, np.newaxis] >= ts_train_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train[:, np.newaxis] <= ts_train_lead_sz[np.newaxis,:] + self.post_sz_interval), axis=1))[0]
 
             ts_train_non_lead_sz = sz_onsets[train_sz_indx][~np.any(sz_onsets[train_sz_indx][:,np.newaxis] == ts_train_lead_sz[np.newaxis,:], axis=1)]
             ts_train_interictal = timestamps[train_indx][annotations[train_indx] == 0]
             not_relevant_indx = np.unique(np.concat((
                 not_relevant_indx,
-                np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.lead_sz_post_interval), axis=1))][np.newaxis,:], axis=1))[0]
+                np.where(np.any(ts_train[:, np.newaxis] == ts_train_interictal[np.where(np.any(np.logical_and(ts_train_interictal[:, np.newaxis] >= ts_train_non_lead_sz[np.newaxis,:] - self.prediction_latency, ts_train_interictal[:, np.newaxis] <= ts_train_non_lead_sz[np.newaxis,:] + self.post_sz_interval), axis=1))][np.newaxis,:], axis=1))[0]
                 )))
 
             train_indx = (np.setdiff1d(train_indx, not_relevant_indx),)

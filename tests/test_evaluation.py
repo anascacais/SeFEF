@@ -17,10 +17,10 @@ class TestTimeSeriesCV(unittest.TestCase):
         self.sz_onsets = [1609459800, 1609461000]
         self.preictal_duration = 300
         self.prediction_latency = 300
-        self.lead_sz_pre_interval = 900
-        self.lead_sz_post_interval = 300
+        self.pre_lead_sz_interval = 900
+        self.post_sz_interval = 300
         self.dataset = Dataset(self.files_metadata, self.sz_onsets)
-        self.tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        self.tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
     
     # 1. Test Initialization:  Verify that attributes are correctly initialized.
     def test_initialization(self):
@@ -60,14 +60,14 @@ class TestTimeSeriesCV(unittest.TestCase):
         })
         sz_onsets = [1609459800, 1609460700]
         self.dataset = Dataset(files_metadata, sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, initial_train_duration=1600, test_duration=300, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=1, n_min_events_test=1, initial_train_duration=1600, test_duration=300, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
 
         with self.assertRaises(ValueError):
             tscv.split(self.dataset, iteratively=False, plot=False)
 
     # 5. Split when number of events in Dataset is smaller than n_min_events_train + n_min_events_test
     def test_split_no_events(self):
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=3, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=3, n_min_events_test=1, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
 
         with self.assertRaises(ValueError):
             tscv.split(self.dataset, iteratively=False, plot=False)
@@ -98,7 +98,7 @@ class TestTimeSeriesCV(unittest.TestCase):
         ])
 
         dataset = Dataset(files_metadata, sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
         tscv.split(dataset, iteratively=False, plot=False)
 
         self.assertTrue(tscv.n_folds == expected_n_folds)
@@ -117,7 +117,7 @@ class TestTimeSeriesCV(unittest.TestCase):
             [1609459500, 1609460700, 1609462800],
         ])
         dataset = Dataset(files_metadata, sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=self.preictal_duration, prediction_latency=0, n_min_events_train=1, n_min_events_test=1, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
         tscv.split(dataset, iteratively=False, plot=False)
 
         self.assertTrue(tscv.n_folds == expected_n_folds)
@@ -136,7 +136,7 @@ class TestTimeSeriesCV(unittest.TestCase):
         sz_onsets = [1609460100, 1609460400, 1609461900, 1609463100]
 
         dataset = Dataset(files_metadata, sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=2, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=2, n_min_events_test=1, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
         tscv.split(dataset, iteratively=False, plot=False)
 
         # Mock HDF5 file behavior
@@ -187,7 +187,7 @@ class TestTimeSeriesCV(unittest.TestCase):
         sz_onsets = [1609460100, 1609460400, 1609461900, 1609463100]
 
         dataset = Dataset(files_metadata, sz_onsets)
-        tscv = TimeSeriesCV(preictal_duration=preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=2, n_min_events_test=1, lead_sz_pre_interval=self.lead_sz_pre_interval, lead_sz_post_interval=self.lead_sz_post_interval)
+        tscv = TimeSeriesCV(preictal_duration=preictal_duration, prediction_latency=self.prediction_latency, n_min_events_train=2, n_min_events_test=1, pre_lead_sz_interval=self.pre_lead_sz_interval, post_sz_interval=self.post_sz_interval)
         tscv.split(dataset, iteratively=False, plot=False)
 
         # Mock HDF5 file behavior
