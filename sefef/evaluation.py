@@ -84,7 +84,7 @@ class TimeSeriesCV:
         self.n_folds = None
         self.split_ind_ts = None
 
-    def split(self, dataset, iteratively=False, plot=False):
+    def split(self, dataset, iteratively=False, plot=False, extend_final_test_set=False):
         """ Get timestamp indices to split data for time series cross-validation. 
         - The train set would be given by metadata.loc[train_start_ts : test_start_ts].
         - The test set would be given by metadata.loc[test_start_ts : test_end_ts].
@@ -97,6 +97,8 @@ class TimeSeriesCV:
             If the split is meant to return the timestamp indices for each fold iteratively (True) or to simply update 'split_ind_ts' (False). 
         plot : bool, defaults to False
             If a diagram illustrating the TSCV should be shown at the end. 'iteratively' cannot be set to True
+        extend_final_test_set : bool
+            Whether to extend test set in final fold to include all data or keep test duration approximately the same across folds.
 
         Returns:
         --------
@@ -136,10 +138,14 @@ class TimeSeriesCV:
         if iteratively:
             if plot:
                 raise ValueError("The variables 'iteratively' and 'plot' cannot both be set to True.")
+            if extend_final_test_set:
+                raise NotImplementedError("Setting both 'iteratively' and 'extend_final_test_set' to True is currently not supported.")
             return self._expanding_window_split(dataset_lead_sz, initial_cutoff_ts)
         else:
             for _ in self._expanding_window_split(dataset_lead_sz, initial_cutoff_ts):
                 pass
+            if extend_final_test_set:
+                self.split_ind_ts[-1, 2] = dataset_lead_sz.metadata.index[-1]
             if plot:
                 self.plot(dataset_lead_sz)
             return None
@@ -164,7 +170,6 @@ class TimeSeriesCV:
                     0]
                 test_end_ts = self._check_criteria_split(after_train_set, test_end_ts)
                 split_ind_ts += [[train_start_ts, test_start_ts, test_end_ts]]
-
             except IndexError:
                 break
             yield train_start_ts, test_start_ts, test_end_ts
@@ -288,8 +293,12 @@ class TimeSeriesCV:
         if metadata.iloc[cutoff_ind-1]['sz_onset'] == 1:
             ts_post_lead_sz = metadata.iloc[cutoff_ind-1].name + self.post_sz_interval 
             cutoff_ind = np.where(metadata.index <= ts_post_lead_sz)[0][-1] + 1
-            if cutoff_ind == len(metadata):
-                cutoff_ind -= 1 
+        elif metadata.iloc[cutoff_ind]['sz_onset'] == 1:
+            ts_post_lead_sz = metadata.iloc[cutoff_ind].name + self.post_sz_interval 
+            cutoff_ind = np.where(metadata.index <= ts_post_lead_sz)[0][-1] + 1    
+        
+        if cutoff_ind == len(metadata):
+            cutoff_ind -= 1 
 
         return metadata.iloc[cutoff_ind].name
 
