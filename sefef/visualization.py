@@ -73,7 +73,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     # get only sz_onsets for which there are forecasts
     ts_forecast_end = ts + forecast_horizon
     sz_onsets = sz_onsets[np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=1)]
-    sz_onsets_forecasts_ind = np.argwhere(np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=0))[:,0]
+    sz_onsets_forecasts_ind = np.argwhere(np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])))[:,1]
     
     for i in range(len(y_values) - 1):
         y0 = y_values[i]
