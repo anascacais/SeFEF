@@ -72,9 +72,11 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
 
     # get only sz_onsets for which there are forecasts
     ts_forecast_end = ts + forecast_horizon
-    sz_onsets = sz_onsets[np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=1)]
-    sz_onsets_forecasts_ind = np.argwhere(np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])))[:,1]
-    
+    sz_onsets = sz_onsets[np.logical_and((sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]),
+                                         (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])).any(axis=1)]
+    sz_onsets_forecasts_ind = np.argwhere(np.logical_and(
+        (sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])))[:, 1]
+
     for i in range(len(y_values) - 1):
         y0 = y_values[i]
         y1 = y_values[i + 1]
@@ -114,9 +116,13 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     fig.add_hline(y=high_likelihood_thr, line_width=1, line_color='#FF0000')
 
     fig.update_yaxes(
+        title='Probability',
         gridcolor='lightgrey',
         tickfont=dict(size=12),
         range=[0, np.min([1, np.max(forecasts)+0.05])],
+    )
+    fig.update_xaxes(
+        title='Time',
     )
     fig.update_layout(
         title=title,
