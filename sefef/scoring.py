@@ -115,6 +115,7 @@ class Scorer:
                 raise ValueError(f'{metric_name} is not a valid metric.')
 
         if draw_diagram:
+            bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
             self._reliability_diagram(forecasts, timestamps, bin_edges, binning_method)
 
         return self.performance

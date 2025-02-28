@@ -12,6 +12,7 @@ This is a helper module for visualization.
 import os
 
 # third-party
+from plotly.subplots import make_subplots
 import matplotlib as mpl
 import numpy as np
 import plotly.graph_objects as go
@@ -51,7 +52,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
 
 
-def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None):
+def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False):
     ''' Provide visualization of forecasts.
 
     Parameters
@@ -83,9 +84,11 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         color = _color_fader((y0 + y1) / 2, thr=high_likelihood_thr)  # Color for the midpoint of the interval
         fig.add_shape(
             type="rect",
-            x0=0, x1=1,  # Full chart width (relative to 'paper')
+            x0=pd.to_datetime(ts[0], unit='s'), x1=pd.to_datetime(
+                ts_forecast_end[-1], unit='s'),  # Full chart width (relative to 'paper')
             y0=y0, y1=y1,
-            xref='paper', yref='y',
+            # xref='paper',
+            yref='y',
             fillcolor=color,
             line_width=0,  # No border
             layer="below",
@@ -115,11 +118,13 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
 
     fig.add_hline(y=high_likelihood_thr, line_width=1, line_color='#FF0000')
 
+    non_nan_forecasts = forecasts[~np.isnan(forecasts)]
     fig.update_yaxes(
         title='Probability',
         gridcolor='lightgrey',
         tickfont=dict(size=12),
-        range=[0, np.min([1, np.max(forecasts)+0.05])],
+        range=[np.max([0, np.min(non_nan_forecasts) - np.std(non_nan_forecasts)]),
+               np.min([1, np.max(non_nan_forecasts) + np.std(non_nan_forecasts)])],
     )
     fig.update_xaxes(
         title='Time',
@@ -134,7 +139,68 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
             os.mkdir(folder_path)
         fig.write_image(os.path.join(folder_path, filename))
 
-    fig.show()
+    if show:
+        fig.show()
+
+    if return_plot:
+        return fig
+
+
+def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
+    ''' Receives go.Figure objects created using "plot_forecasts" and aggregates them into a single Figure.
+
+    Parameters
+    ---------- 
+    figs : go.Figure
+        Figures to aggregate into a single plot. 
+    '''
+    fig = make_subplots(rows=1, cols=len(
+        figs), shared_yaxes=True, horizontal_spacing=0.005)
+    forecasts = []
+    for ifig, figure in enumerate(figs):
+        print(f'Aggregating forecast plots ({ifig+1}/{len(figs)})', end='\r')
+        for trace in figure.data:
+            fig.add_trace(trace, row=1, col=(ifig+1))
+        for shape in figure.layout.shapes or []:
+            new_shape = shape.to_plotly_json()
+            new_shape["xref"], new_shape["yref"] = f"x{ifig+1}", f"y{ifig+1}"
+            fig.add_shape(new_shape)
+        for annotation in figure.layout.annotations or []:
+            annotation["xref"], annotation["yref"] = f"x{ifig+1}", f"y{ifig+1}"
+            fig.add_annotation(annotation)
+        fig.update_xaxes(
+            range=[trace['x'][0], trace['x'][-1]], row=1, col=(ifig+1))
+        fig.update_yaxes(
+            showticklabels=(ifig == 0),
+            row=1, col=(ifig+1))
+        forecasts += [figure['data'][0]['y']]
+
+    # Update layout
+    forecasts = np.concat(forecasts)
+    fig.update_layout(
+        title_text=figure['layout']['title']['text'],
+        showlegend=False, plot_bgcolor='white',
+        yaxis_title='Probability',
+        annotations=[
+            dict(
+                text="Time",
+                x=0.5, y=-0.15,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=14)
+            )],)
+    fig.update_yaxes(
+        range=[np.max([0, np.min(forecasts) - np.std(forecasts)]),
+               np.min([1, np.max(forecasts) + np.std(forecasts)])])
+
+    if folder_path is not None:
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+        fig.write_image(os.path.join(folder_path, filename))
+
+    if show:
+        fig.show()
 
 
 def html_modelcard_formating(contents):

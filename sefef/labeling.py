@@ -28,7 +28,7 @@ def add_annotations(h5dataset, sz_onsets_ts, preictal_duration=3600, prediction_
         - "timestamps": contains the start timestamp (unix in seconds) of each sample in the "data" dataset, with shape (#samples, ).
         - "sz_onsets": contains the Unix timestamps of the onsets of seizures (#sz_onsets, ). (optional)
     sz_onsets_ts : array-like, shape (#sz onsets, )
-        Contains the unix timestamps (in seconds) of the onsts of seizures. 
+        Contains the unix timestamps (in seconds) of the onsets of seizures. 
     preictal_duration : int, defaults to 3600 (60min)
         Duration of the period (in seconds) that will be labeled as preictal, i.e. that we expect to contain useful information for the forecast
     prediction_latency : int, defaults to 600 (10min)
