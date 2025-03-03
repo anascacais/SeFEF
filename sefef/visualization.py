@@ -10,6 +10,7 @@ This is a helper module for visualization.
 """
 # built-in
 import os
+from datetime import datetime
 
 # third-party
 from plotly.subplots import make_subplots
@@ -159,8 +160,10 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
     forecasts = []
     for ifig, figure in enumerate(figs):
         print(f'Aggregating forecast plots ({ifig+1}/{len(figs)})', end='\r')
+        x0, x1 = datetime.max, datetime.min
         for trace in figure.data:
             fig.add_trace(trace, row=1, col=(ifig+1))
+            x0, x1 = min(x0, min(trace['x'])), max(x1, max(trace['x']))
         for shape in figure.layout.shapes or []:
             new_shape = shape.to_plotly_json()
             new_shape["xref"], new_shape["yref"] = f"x{ifig+1}", f"y{ifig+1}"
@@ -169,7 +172,7 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
             annotation["xref"], annotation["yref"] = f"x{ifig+1}", f"y{ifig+1}"
             fig.add_annotation(annotation)
         fig.update_xaxes(
-            range=[trace['x'][0], trace['x'][-1]], row=1, col=(ifig+1))
+            range=[x0, x1], row=1, col=(ifig+1))
         fig.update_yaxes(
             showticklabels=(ifig == 0),
             row=1, col=(ifig+1))
