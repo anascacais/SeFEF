@@ -71,7 +71,7 @@ class Scorer:
         self.metrics2function = {'Sen': self._compute_Sen, 'FPR': self._compute_FPR, 'TiW': self._compute_TiW, 'AUC_TiW': self._compute_AUC, 'resolution': self._compute_resolution,
                                  'reliability': self._compute_reliability, 'calibration': self._compute_reliability, 'BS': self._compute_BS,  'skill': self._compute_skill, 'BSS': self._compute_skill}
 
-    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='equal_frequency', num_bins=10, draw_diagram=True):
+    def compute_metrics(self, forecasts, timestamps, threshold=0.5, binning_method='quantile', num_bins=10, draw_diagram=True):
         ''' Computes metrics in "metrics2compute" for the probabilities in "forecasts" and populates the "performance" attribute.
 
         Parameters
@@ -84,8 +84,8 @@ class Scorer:
             Probability value to apply as the high-likelihood threshold. 
         binning_method : str, defaults to "equal_frequency"
             Method used to determine the number of bins used to compute probabilistic metrics. Available methods are: 
-                - "equal_width": number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.
-                - "equal_frequency": number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.
+                - "uniform": number of bins corresponds to np.ceil(#forecasts^(1/3)), set at approximately equal distances.
+                - "quantile": number of bins corresponds to np.ceil(#forecasts^(1/3)), which are populated with an approximately equal number of forecasts.
         num_bins : int64, defaults to 10
             Number of bins used to compute probabilistic metrics. If None, it is calculated as np.ceil(#forecasts^(1/3)), otherwise "num_bins" is used as the number of bins.
         draw_diagram : bool, defaults to True
@@ -115,8 +115,7 @@ class Scorer:
                 raise ValueError(f'{metric_name} is not a valid metric.')
 
         if draw_diagram:
-            bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
-            self._reliability_diagram(forecasts, timestamps, bin_edges, binning_method)
+            self.reliability_diagram(forecasts, timestamps, binning_method=binning_method, num_bins=num_bins)
 
         return self.performance
 
@@ -177,9 +176,9 @@ class Scorer:
         if num_bins is None:
             num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
 
-        if binning_method == 'equal_width':
+        if binning_method == 'uniform':
             bin_edges = np.linspace(0, 1, num_bins + 1)
-        elif binning_method == 'equal_frequency':
+        elif binning_method == 'quantile':
             percentile = np.linspace(0, 100, num_bins + 1)
             bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  # remove edge corresponding to 0th percentile
         else:
@@ -279,27 +278,29 @@ class Scorer:
 
     def _get_reference_forecasts(self, timestamps):
         '''Internal method that returns a reference forecast according to the specified method. "y_avg": observed relative frequency of true events for all forecasts.'''
-        # if self.reference_method == 'hist_prior_prob':
-        #     return self.hist_prior_prob * np.ones_like(timestamps)
         if self.reference_method == 'prior_prob':
             y_avg = len(self.sz_onsets) / len(timestamps)
             return y_avg * np.ones_like(timestamps)
         else:
             raise ValueError(f'{self.reference_method} is not a valid method to compute the reference forecasts.')
 
-    def _reliability_diagram(self, forecasts, timestamps, bin_edges, binning_method):
-        '''Internal method that plots the reliability diagram (forecasted_proba vs observed_proba), along with the no-resolution and perfect-reliability lines.'''
+    def reliability_diagram(self, forecasts, timestamps, binning_method, num_bins):
+        '''Method that plots the reliability diagram (forecasted_proba vs observed_proba), along with the no-resolution and perfect-reliability lines.'''
         fig = go.Figure()
 
         y_avg = len(self.sz_onsets) / len(forecasts)
+
+        bin_edges = self._get_bins_indx(forecasts, binning_method, num_bins)
         binned_data = np.digitize(forecasts, bin_edges, right=True)
         bin_edges = np.insert(bin_edges, 0, 0.)
+
         diagram_data = pd.DataFrame(columns=['observed_proba', 'forecasted_proba'],
                                     index=(bin_edges[:-1] + bin_edges[1:]) / 2)
 
         for k in np.unique(binned_data):
             binned_indx = np.where(binned_data == k)
-            events_in_bin, _, _ = self._get_counts(forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
+            events_in_bin, _, _ = self._get_counts(
+                forecasts[binned_indx], timestamps[binned_indx], threshold=0.)
             y_k_avg = events_in_bin / len(forecasts[binned_indx])
             diagram_data.iloc[k, :] = [y_k_avg, np.mean(forecasts[binned_indx])]
 
@@ -332,7 +333,6 @@ class Scorer:
             x=[0, 1],
             y=[y_avg, y_avg],
             line=dict(width=3, color='lightgrey', dash='dash'),
-            # showlegend=False,
             mode='lines',
             name='No resolution'
         ))
@@ -343,18 +343,14 @@ class Scorer:
             tickfont=dict(size=12),
             showline=True, linewidth=2, linecolor=COLOR_PALETTE[2],
             showgrid=False,
-            range=[0, 1]
+            range=[diagram_data.min().min(), diagram_data.max().max()]
         )
         fig.update_xaxes(
             title='forecasted probability',
             tickfont=dict(size=12),
             showline=True, linewidth=2, linecolor=COLOR_PALETTE[2],
             showgrid=False,
-            tickmode='array',
-            tickvals=bin_edges,
-            tickformat='.3',
-            ticks="inside", tickwidth=2, tickcolor=COLOR_PALETTE[2], ticklen=10,
-            range=[0, 1],
+            range=[diagram_data.min().min(), diagram_data.max().max()],
         )
         fig.update_layout(
             title=f'Reliability diagram (binning method: {binning_method})',
@@ -362,4 +358,3 @@ class Scorer:
             plot_bgcolor='white',
         )
         fig.show()
-        pass
