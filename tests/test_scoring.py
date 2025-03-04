@@ -115,7 +115,7 @@ class TestScorer(unittest.TestCase):
         forecasts = [0.2, 0.6, 0.8]
         scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
         performance = scorer.compute_metrics(forecasts, self.timestamps,
-                                             binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+                                             binning_method='uniform', num_bins=self.num_bins, draw_diagram=False)
         expected_performance = ((self.hist_prior_prob)**2 + 2*(1-self.hist_prior_prob)**2) / 3
         self.assertTrue(np.abs(performance['resolution'] - expected_performance) < 1e-6)
 
@@ -125,7 +125,7 @@ class TestScorer(unittest.TestCase):
         forecasts = [0.2, 0.6, 0.8]
         scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
         performance = scorer.compute_metrics(forecasts, self.timestamps,
-                                             binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+                                             binning_method='uniform', num_bins=self.num_bins, draw_diagram=False)
         expected_performance = (0.2**2 + 2*(0.7-1)**2) / 3
         self.assertTrue(np.abs(performance['reliability'] - expected_performance) < 1e-6)
 
@@ -135,7 +135,7 @@ class TestScorer(unittest.TestCase):
         forecasts = [0.2, 0.6, 0.8]
         scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
         performance = scorer.compute_metrics(forecasts, self.timestamps,
-                                             binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+                                             binning_method='uniform', num_bins=self.num_bins, draw_diagram=False)
         expected_performance = (0.2**2 + (0.6-1)**2 + (0.8-1)**2) / 3
         self.assertTrue(np.abs(performance['BS'] - expected_performance) < 1e-6)
 
@@ -145,7 +145,7 @@ class TestScorer(unittest.TestCase):
         forecasts = [0.2, 0.6, 0.8]
         scorer = Scorer(metrics2compute, sz_onsets, self.forecast_horizon, self.reference_method, self.hist_prior_prob)
         performance = scorer.compute_metrics(forecasts, self.timestamps,
-                                             binning_method='equal_width', num_bins=self.num_bins, draw_diagram=False)
+                                             binning_method='uniform', num_bins=self.num_bins, draw_diagram=False)
         expected_performance = 1 - 0.08 / \
             ((self.hist_prior_prob**2 + (self.hist_prior_prob-1)**2 + (self.hist_prior_prob-1)**2) / 3)
         self.assertTrue(np.abs(performance['BSS'] - expected_performance) < 1e-6)
