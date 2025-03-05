@@ -53,7 +53,7 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
 
 
-def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False):
+def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False, thr_res=0.01):
     ''' Provide visualization of forecasts.
 
     Parameters
@@ -69,7 +69,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     '''
     fig = go.Figure()
 
-    y_values = np.linspace(start=0, stop=1, num=100)
+    y_values = np.arange(0, 1, thr_res)
     y_values[np.argmin(np.abs(y_values - high_likelihood_thr))] = high_likelihood_thr
 
     # get only sz_onsets for which there are forecasts
