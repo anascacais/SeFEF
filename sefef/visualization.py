@@ -18,6 +18,9 @@ import matplotlib as mpl
 import numpy as np
 import plotly.graph_objects as go
 import pandas as pd
+import plotly.express.colors as pc
+import plotly.express as px
+
 
 COLOR_PALETTE = ['#4179A0', '#A0415D', '#44546A', '#44AA97', '#FFC000', '#0F3970', '#873C26']
 
@@ -53,24 +56,21 @@ def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#F
         return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
 
 
-def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False, thr_res=0.01):
+def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False, n_points=100):
     ''' Provide visualization of forecasts.
 
     Parameters
-    ---------- 
+    ----------
     forecasts : array-like, shape (#forecasts, ), dtype "float64"
         Contains the predicted probabilites of seizure occurrence for the period with duration "forecast_horizon" and starting at the timestamps in "result2".
     ts : array-like, shape (#forecasts, ), dtype "int64"
-        Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "result1") are valid. 
+        Contains the Unix timestamps, in seconds, for the start of the period for which the forecasts (in "result1") are valid.
     sz_onsets : array-like, shape (#sz onsets, )
-        Contains the unix timestamps (in seconds) of the onsts of seizures. 
+        Contains the unix timestamps (in seconds) of the onsts of seizures.
     high_likelihood_thr : float64
         Value between 0 and 1 corresponding to the threshold of high-likelihood.
     '''
     fig = go.Figure()
-
-    y_values = np.arange(0, 1, thr_res)
-    y_values[np.argmin(np.abs(y_values - high_likelihood_thr))] = high_likelihood_thr
 
     # get only sz_onsets for which there are forecasts
     ts_forecast_end = ts + forecast_horizon
@@ -79,21 +79,20 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     sz_onsets_forecasts_ind = np.argwhere(np.logical_and(
         (sz_onsets[:, np.newaxis] >= ts[np.newaxis, :]), (sz_onsets[:, np.newaxis] < ts_forecast_end[np.newaxis, :])))[:, 1]
 
-    for i in range(len(y_values) - 1):
-        y0 = y_values[i]
-        y1 = y_values[i + 1]
-        color = _color_fader((y0 + y1) / 2, thr=high_likelihood_thr)  # Color for the midpoint of the interval
-        fig.add_shape(
-            type="rect",
-            x0=pd.to_datetime(ts[0], unit='s'), x1=pd.to_datetime(
-                ts_forecast_end[-1], unit='s'),  # Full chart width (relative to 'paper')
-            y0=y0, y1=y1,
-            # xref='paper',
-            yref='y',
-            fillcolor=color,
-            line_width=0,  # No border
-            layer="below",
-        )
+    # Draw background
+    color_gradient = px.colors.sequential.RdBu[1:-1][::-1]
+    color_gradient.remove('rgb(247,247,247)')
+    low_prob_values = np.linspace(0, high_likelihood_thr, int(n_points/2))
+    high_prob_values = np.linspace(high_likelihood_thr, 1, int(n_points/2))
+    low_prob_colors = [color_gradient[int(
+        val / high_likelihood_thr * (len(color_gradient)//2 - 1))] for val in low_prob_values]
+    high_prob_colors = [color_gradient[-len(color_gradient)//2:][int((val - high_likelihood_thr) / (1 - high_likelihood_thr) * (len(color_gradient)//2 - 1))]
+                        for val in high_prob_values]
+
+    fig = _get_gradient(fig, low_prob_values, low_prob_colors, x0=pd.to_datetime(ts[0], unit='s'), x1=pd.to_datetime(
+        ts_forecast_end[-1], unit='s'))
+    fig = _get_gradient(fig, high_prob_values, high_prob_colors, x0=pd.to_datetime(ts[0], unit='s'), x1=pd.to_datetime(
+        ts_forecast_end[-1], unit='s'))
 
     df_start = pd.DataFrame({'ts': ts, 'forecasts': forecasts})
     df_end = df_start.copy()
@@ -104,7 +103,9 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         x=pd.to_datetime(df['ts'], unit='s'), y=df['forecasts'],
         mode='lines',
         line_color=COLOR_PALETTE[2],
-        line_width=3
+        line_width=3,
+        fill='tozeroy',
+        fillcolor='white'
     ))
 
     fig.add_trace(go.Scatter(
@@ -112,8 +113,8 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         mode='text',
         text=['ϟ'] * len(sz_onsets),
         textfont=dict(
-            size=20,
-            color='white'  # Set the color of the Unicode text here
+            size=25,
+            color=COLOR_PALETTE[1]
         )
     ))
 
@@ -133,7 +134,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     fig.update_layout(
         title=title,
         showlegend=False,
-        plot_bgcolor='white')
+        plot_bgcolor='white',)
 
     if folder_path is not None:
         if not os.path.exists(folder_path):
@@ -145,6 +146,19 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
 
     if return_plot:
         return fig
+
+
+def _get_gradient(fig, values, colors, x0, x1):
+    for i in range(len(colors)-1):
+        fig.add_shape(
+            type="rect",
+            x0=x0, x1=x1,
+            y0=values[i], y1=values[i+1],
+            fillcolor=colors[i],
+            yref='y',
+            line_width=0,  # No border
+            layer="below",)
+    return fig
 
 
 def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
