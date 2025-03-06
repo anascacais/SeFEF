@@ -102,10 +102,10 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     fig.add_trace(go.Scatter(
         x=pd.to_datetime(df['ts'], unit='s'), y=df['forecasts'],
         mode='lines',
-        line_color=COLOR_PALETTE[2],
+        line_color='white',
         line_width=3,
-        fill='tozeroy',
-        fillcolor='white'
+        # fill='tozeroy',
+        # fillcolor='white'
     ))
 
     fig.add_trace(go.Scatter(
@@ -118,18 +118,19 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         )
     ))
 
-    fig.add_hline(y=high_likelihood_thr, line_width=1, line_color='#FF0000')
+    fig.add_hline(y=high_likelihood_thr, line_width=1, line_color='#FF0000', yref='y',)
 
     non_nan_forecasts = forecasts[~np.isnan(forecasts)]
     fig.update_yaxes(
         title='Probability',
-        gridcolor='lightgrey',
+        showgrid=False,
         tickfont=dict(size=12),
         range=[np.max([0, np.min(non_nan_forecasts) - np.std(non_nan_forecasts)]),
                np.min([1, np.max(non_nan_forecasts) + np.std(non_nan_forecasts)])],
     )
     fig.update_xaxes(
         title='Time',
+        showgrid=False,
     )
     fig.update_layout(
         title=title,
@@ -179,9 +180,13 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
             fig.add_trace(trace, row=1, col=(ifig+1))
             x0, x1 = min(x0, min(trace['x'])), max(x1, max(trace['x']))
         for shape in figure.layout.shapes or []:
-            new_shape = shape.to_plotly_json()
-            new_shape["xref"], new_shape["yref"] = f"x{ifig+1}", f"y{ifig+1}"
-            fig.add_shape(new_shape)
+            if shape.type == 'rect':
+                new_shape = shape.to_plotly_json()
+                new_shape["xref"], new_shape["yref"] = f"x{ifig+1}", f"y{ifig+1}"
+                fig.add_shape(new_shape)
+            elif shape.type == 'line':
+                fig.add_hline(
+                    y=shape['y0'], line=shape['line'], yref=f"y{ifig+1}")
         for annotation in figure.layout.annotations or []:
             annotation["xref"], annotation["yref"] = f"x{ifig+1}", f"y{ifig+1}"
             fig.add_annotation(annotation)
@@ -207,7 +212,9 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
                 showarrow=False,
                 font=dict(size=14)
             )],)
+    fig.update_xaxes(showgrid=False,)
     fig.update_yaxes(
+        showgrid=False,
         range=[np.max([0, np.min(forecasts) - np.std(forecasts)]),
                np.min([1, np.max(forecasts) + np.std(forecasts)])])
 
