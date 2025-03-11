@@ -104,21 +104,22 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         mode='lines',
         line_color='white',
         line_width=3,
-        # fill='tozeroy',
-        # fillcolor='white'
+        name='Forecast'
     ))
 
     fig.add_trace(go.Scatter(
         x=pd.to_datetime(sz_onsets, unit='s'), y=forecasts[sz_onsets_forecasts_ind],
-        mode='text',
-        text=['ϟ'] * len(sz_onsets),
-        textfont=dict(
-            size=25,
-            color=COLOR_PALETTE[1]
-        )
+        mode='markers',
+        marker=dict(
+            color=COLOR_PALETTE[1],
+            size=12,
+            symbol='star',
+        ),
+        name='Seizure'
     ))
 
-    fig.add_hline(y=high_likelihood_thr, line_width=1, line_color='#FF0000', yref='y',)
+    fig.add_hline(y=high_likelihood_thr, line_width=1,
+                  line_color='#FF0000', yref='y',)
 
     non_nan_forecasts = forecasts[~np.isnan(forecasts)]
     fig.update_yaxes(
@@ -134,8 +135,9 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     )
     fig.update_layout(
         title=title,
-        showlegend=False,
-        plot_bgcolor='white',)
+        showlegend=True,
+        plot_bgcolor='white',
+        legend_bgcolor='whitesmoke')
 
     if folder_path is not None:
         if not os.path.exists(folder_path):
@@ -177,6 +179,7 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
         print(f'Aggregating forecast plots ({ifig+1}/{len(figs)})', end='\r')
         x0, x1 = datetime.max, datetime.min
         for trace in figure.data:
+            trace['showlegend'] = (ifig == 0)
             fig.add_trace(trace, row=1, col=(ifig+1))
             x0, x1 = min(x0, min(trace['x'])), max(x1, max(trace['x']))
         for shape in figure.layout.shapes or []:
@@ -201,7 +204,7 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
     forecasts = np.concat(forecasts)
     fig.update_layout(
         title_text=figure['layout']['title']['text'],
-        showlegend=False, plot_bgcolor='white',
+        showlegend=True, plot_bgcolor='white', legend_bgcolor='whitesmoke',
         yaxis_title='Probability',
         annotations=[
             dict(

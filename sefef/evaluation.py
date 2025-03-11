@@ -397,33 +397,14 @@ class TimeSeriesCV:
             y=metadata.data-0.1,
             showlegend=showlegend,
             name='Seizure',
-            mode='markers+text',
-            text=['ϟ'] * len(metadata),
-            marker=dict(size=0, color='rgba(0,0,0,0)'),
-            textfont=dict(
-                size=16,
+            mode='markers',
+            marker=dict(
                 color='rgba' + str(hex_to_rgba(
                     h=color, alpha=opacity
-                ))
-            )
-        )
-
-    def _get_dummy_scatter(self, color, showlegend, opacity=1):
-        """Internal method that returns a scatter plot without data only to create a legend item with neutral color for sz"""
-        return go.Scatter(
-            x=[None],
-            y=[None],
-            showlegend=showlegend,
-            name='Seizure',
-            mode="markers+text",
-            text=['ϟ'],
-            marker=dict(size=0, color='rgba(0,0,0,0)'),
-            textfont=dict(
-                size=16,
-                color='rgba' + str(hex_to_rgba(
-                    h=color, alpha=opacity
-                ))
-            )
+                )),
+                size=12,
+                symbol='star',
+            ),
         )
 
     def _get_scatter_plot(self, metadata, color, mode, name, showlegend):
