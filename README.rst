@@ -33,7 +33,9 @@ Installation can be easily done with ``pip``:
 Simple Example
 --------------
 
-The code below loads the metadata from an existing dataset from the ``examples`` folder, splits creates a ``Dataset`` instance, and creates an adequate split for a time series cross-validation (``TSCV``). It also provides an example of model development and evaluation through a simple probabilistic estimator that leverages periodicity in event data. 
+The code below loads the metadata from an existing dataset from the ``examples`` folder, splits creates a Dataset instance, and creates an adequate split for a time series cross-validation. It also provides an example of model development and evaluation through a simple probabilistic estimator that leverages periodicity in event data. 
+
+This example dataset contains synthesized event occurrence timestamps spanning 2.5 years, starting from January 1, 2020. Events occur periodically, with an initial cycle of 28 days (in seconds), subject to a small random variation of ±1 day.
 
 .. code:: python
 
