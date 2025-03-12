@@ -7,7 +7,7 @@ Welcome to ``SeFEF``
 
 |
 
-``SeFEF`` is a Seizure Forecast Evaluation Framework written in Python.
+``SeFEF`` is a Seizure Forecasting Evaluation Framework written in Python.
 The framework standardizes the development, evaluation, and reporting of individualized algorithms for seizure likelihood forecast. 
 ``SeFEF`` aims to decrease development time and minimize implementation errors by automating key procedures within data preparation, training/testing, and computation of evaluation metrics. 
 

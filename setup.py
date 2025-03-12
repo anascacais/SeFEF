@@ -14,7 +14,7 @@ setup(
     name='sefef',
     version='2.3.3',
     license="BSD 3-clause",
-    description='SeFEF: Seizure Forecast Evaluation Framework',
+    description='SeFEF: Seizure Forecasting Evaluation Framework',
     long_description=read_readme(),
     long_description_content_type="text/x-rst",
     readme="README.rst",

@@ -165,6 +165,6 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'SeFEF', 'SeFEF Documentation',
-     author, 'SeFEF', 'Seizure Forecast Evaluation Framework.',
+     author, 'SeFEF', 'Seizure Forecasting Evaluation Framework.',
      'Miscellaneous'),
 ]
