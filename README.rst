@@ -30,7 +30,7 @@ Installation can be easily done with ``pip``:
 
     $ pip install sefef
 
-Simple Example
+Example
 --------------
 
 The code below loads the metadata from an existing dataset from the ``examples`` folder, splits creates a Dataset instance, and creates an adequate split for a time series cross-validation. It also provides an example of model development and evaluation through a simple probabilistic estimator that leverages periodicity in event data. 
@@ -41,8 +41,6 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
 
     # built-in
     import os
-    import json
-    import math
 
     # third-party
     import h5py
@@ -50,7 +48,8 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
     import pandas as pd
 
     # local
-    from config import forecast_horizon, directory_information, high_likelihood_thr
+    from config import forecast_horizon, directory_information
+    from seizureforecast.optimize_threshold import optimize_thr_GMM
     from seizureforecast.prepare_data import create_events_dataset
     from seizureforecast.model_periodicity_analysis import VonMisesEstimator
 
@@ -60,10 +59,9 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
     # Data preparation - read files
     event_times_metadata = pd.read_csv(os.path.join(directory_information['data_folder_path'], 'event_times_metadata.csv'))
     with open(os.path.join(directory_information['data_folder_path'], 'synthetic_onsets.txt'), 'r') as f:
-        event_onsets = json.load(f)
+        event_onsets = [float(line.strip()) for line in f]
 
-    dataset = evaluation.Dataset(event_times_metadata, event_onsets)
-    create_events_dataset(dataset, dataset_filepath=os.path.join(
+    create_events_dataset(event_onsets, freq=['D', 'h'][forecast_horizon < 60*60*24], dataset_filepath=os.path.join(
         directory_information['preprocessed_data_path'], f'event_times_dataset.h5'))
 
     # SeFEF - labeling module
@@ -86,6 +84,9 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
             post_sz_interval=1*60*60,
             pre_lead_sz_interval=4*60*60,
         )
+        dataset = evaluation.Dataset(timestamps=event_times_dataset['timestamps'][(
+        )], samples_duration=[forecast_horizon]*len(event_times_dataset['timestamps'][(
+        )]), sz_onsets=event_times_dataset['sz_onsets'][()])
         tscv.split(dataset)
         tscv.plot(dataset)
 
@@ -94,26 +95,39 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
             print(
                 f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
 
-            _, y_train, ts_train, event_onsets_train = train_data
-            _, _, ts_test, event_onsets_test = test_data
+            X_train, y_train, ts_train, sz_onsets_train = train_data
+            X_test, _, ts_test, sz_onsets_test = test_data
+
+            seizure_hist_freq = pd.to_datetime(pd.Series(sz_onsets_train), unit='s').dt.floor(['D', 'h'][forecast_horizon < 3600*24]).nunique(
+            ) / pd.to_datetime(pd.Series(ts_train), unit='s').dt.floor(['D', 'h'][forecast_horizon < 3600*24]).nunique()
+            print(f'Historical seizure frequency: {seizure_hist_freq}')
 
             # List underlying cycles with periods ranging from 2-periods to 60-periods
-            total_duration = ((ts_train[-1] - ts_train[0]) + forecast_horizon)
-            candidate_cycles = np.arange(
-                2*forecast_horizon, np.min([60*forecast_horizon, math.floor((total_duration*0.5) / forecast_horizon) * forecast_horizon]), forecast_horizon)
-            estimator = VonMisesEstimator(forecast_horizon=forecast_horizon)
+            total_duration = pd.to_timedelta(
+                (ts_train[-1] - ts_train[0]) + forecast_horizon, unit='s')
+            fast_cycles = [pd.Timedelta(hours=t) for t in [6, 12, 24]]
+            slow_cycles = [pd.Timedelta(days=t) for t in list(
+                range(3, min([60, int(np.floor(total_duration.days * 0.5)+1)])))]
+            candidate_cycles = fast_cycles + slow_cycles
+            candidate_cycles = [cycle for cycle in candidate_cycles if cycle > pd.to_timedelta(
+                forecast_horizon, unit='s')]
 
             # Compute likelihoods for phase bins, according to significant cycles.
+            estimator = VonMisesEstimator(forecast_horizon=forecast_horizon)
             try:
-                estimator.train(train_ts=ts_train, train_labels=y_train,
-                                candidate_cycles=candidate_cycles, si_thr=0.8, window_duration=None)
-                estimator.plot_fit_dist(ts_train, y_train, window_ind=-1, unit='days')
+                estimator.train(train_ts=X_train, train_labels=y_train,
+                                candidate_cycles=[cycle.total_seconds() for cycle in candidate_cycles], si_thr=0.6)
+                estimator.plot_fit_dist(X_train, y_train)
             except ValueError as e:
                 print(e)
                 continue
 
+            #  Optimize high-probability threshold
+            high_likelihood_thr = optimize_thr_GMM(np.reshape(
+                estimator.predict(test_ts=X_train), (-1, 1)))
+
             # Compute probability estimates given samples' timestamps
-            pred = estimator.predict(test_ts=ts_test)
+            pred = estimator.predict(test_ts=X_test)
 
             # SeFEF - postprocessing module
             forecast = postprocessing.Forecast(pred, ts_test)
@@ -121,18 +135,23 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
                 forecast_horizon=forecast_horizon, smooth_win=2*60*60, origin='clock-time')
 
             # SeFEF - visualization module
-            visualization.plot_forecasts(
-                forecasts, ts,  event_onsets_test, high_likelihood_thr, forecast_horizon, title=f'Daily seizure probability')
+            fig = visualization.plot_forecasts(
+                forecasts, ts,  sz_onsets_test, high_likelihood_thr, forecast_horizon, title='Daily seizure probability')
 
             # SeFEF - scoring module
             scorer = scoring.Scorer(metrics2compute=['Sen', 'FPR', 'TiW', 'AUC_TiW', 'resolution', 'reliability', 'BS', 'skill'],
-                                    sz_onsets=event_onsets_test,
+                                    sz_onsets=sz_onsets_test,
                                     forecast_horizon=forecast_horizon,
                                     reference_method='prior_prob',
-                                    hist_prior_prob=pd.to_datetime(pd.Series(event_onsets_train), unit='s').dt.floor('D').nunique() / pd.to_datetime(pd.Series(ts_train), unit='s').dt.floor('D').nunique())
+                                    hist_prior_prob=seizure_hist_freq)
 
             fold_performance = scorer.compute_metrics(
-                forecasts, ts, binning_method='quantile', num_bins=5, draw_diagram=True, threshold=high_likelihood_thr)
+                forecasts, ts, binning_method='uniform', num_bins=5, draw_diagram=True, threshold=high_likelihood_thr)
+
+            # Print results
+            for metric in fold_performance:
+                fold_performance[metric] = f'{fold_performance[metric]:0.3f}'
+            print(fold_performance)
 
     except KeyboardInterrupt:
         print('Interrupted by user.')
@@ -140,4 +159,11 @@ This example dataset contains synthesized event occurrence timestamps spanning 2
         print(e)
     finally:
         event_times_dataset.close()
-        
+
+
+The example methodology (available in the ``examples`` folder) results in a daily forecast as the one below (with synthetic data), generated with SeFEF's ``visualization`` module. 
+
+.. image:: examples/forecasts.png
+   :alt: Example forecast with synthetic data
+   :width: 600px
+   :align: center

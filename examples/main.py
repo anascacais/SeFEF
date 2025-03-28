@@ -50,6 +50,7 @@ try:
     tscv.plot(dataset)
 
     # Operationalizing CV
+    figs = []
     for ifold, (train_data, test_data) in enumerate(tscv.iterate(event_times_dataset)):
         print(
             f'\n---------------------\nStarting TSCV fold {ifold+1}/{tscv.n_folds}\n---------------------')
@@ -95,7 +96,8 @@ try:
 
         # SeFEF - visualization module
         fig = visualization.plot_forecasts(
-            forecasts, ts,  sz_onsets_test, high_likelihood_thr, forecast_horizon, title='Daily seizure probability')
+            forecasts, ts,  sz_onsets_test, high_likelihood_thr, forecast_horizon, title='Daily seizure probability', return_plot=True, show=False)
+        figs += [fig]
 
         # SeFEF - scoring module
         scorer = scoring.Scorer(metrics2compute=['Sen', 'FPR', 'TiW', 'AUC_TiW', 'resolution', 'reliability', 'BS', 'skill'],
@@ -111,6 +113,10 @@ try:
         for metric in fold_performance:
             fold_performance[metric] = f'{fold_performance[metric]:0.3f}'
         print(fold_performance)
+
+    # SeFEF - visualization module
+    if len(figs) != 0:
+        visualization.aggregate_plots(figs)
 
 except KeyboardInterrupt:
     print('Interrupted by user.')
