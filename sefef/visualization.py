@@ -30,32 +30,6 @@ def hex_to_rgba(h, alpha):
     return tuple([int(h.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)] + [alpha])
 
 
-def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#FF0000'):
-    ''' Fade (interpolate) from color c1 to c2 with a non-linear transformation, according to the provided threshold.
-
-    Parameters
-    ---------- 
-    ll_color, lh_color, hl_color, hh_color : any format supported by matplotlib, e.g., 'blue', '#FF0000'
-    prob : float64
-        Value between 0 and 1 corresponding to the probability of a seizure happening.
-    thr : float64
-        Value between 0 and 1 corresponding to the threshold 
-
-    Returns
-    -------
-        A hex string representing the blended color.
-    '''
-    ll_color = np.array(mpl.colors.to_rgb(ll))
-    lh_color = np.array(mpl.colors.to_rgb(lh))
-    hl_color = np.array(mpl.colors.to_rgb(hl))
-    hh_color = np.array(mpl.colors.to_rgb(hh))
-
-    if prob <= thr:
-        return mpl.colors.to_hex((1 - prob/thr) * ll_color + (prob/thr) * lh_color)
-    else:
-        return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
-
-
 def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False, n_points=100):
     ''' Provide visualization of forecasts.
 
@@ -173,7 +147,7 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
         Figures to aggregate into a single plot. 
     '''
     fig = make_subplots(rows=1, cols=len(
-        figs), shared_yaxes=True, horizontal_spacing=0.005)
+        figs), shared_yaxes=True, horizontal_spacing=0.05)  # 0.005
     forecasts = []
     for ifig, figure in enumerate(figs):
         print(f'Aggregating forecast plots ({ifig+1}/{len(figs)})', end='\r')
@@ -209,17 +183,18 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
         annotations=[
             dict(
                 text="Time",
-                x=0.5, y=-0.15,
+                x=0.5, y=-0.11,
                 xref="paper",
                 yref="paper",
                 showarrow=False,
                 font=dict(size=14)
             )],)
     fig.update_xaxes(showgrid=False,)
+    non_nan_forecasts = forecasts[~np.isnan(forecasts)]
     fig.update_yaxes(
         showgrid=False,
-        range=[np.max([0, np.min(forecasts) - np.std(forecasts)]),
-               np.min([1, np.max(forecasts) + np.std(forecasts)])])
+        range=[np.max([0, np.min(non_nan_forecasts) - np.std(non_nan_forecasts)]),
+               np.min([1, np.max(non_nan_forecasts) + np.std(non_nan_forecasts)])])
 
     if folder_path is not None:
         if not os.path.exists(folder_path):

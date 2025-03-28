@@ -129,7 +129,7 @@ class Scorer:
             (self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :])
             & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :])
             & (forecasts >= threshold),
-            axis=1)
+            axis=0)
 
         no_sz_forecasts = forecasts[~np.any(
             (self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :])
@@ -177,7 +177,7 @@ class Scorer:
             num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
 
         if binning_method == 'uniform':
-            bin_edges = np.linspace(0, 1, num_bins + 1)
+            bin_edges = np.linspace(min(forecasts), max(forecasts), num_bins + 1)
         elif binning_method == 'quantile':
             percentile = np.linspace(0, 100, num_bins + 1)
             bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  # remove edge corresponding to 0th percentile
@@ -324,7 +324,6 @@ class Scorer:
             x=[0, 1],
             y=[0, 1],
             line=dict(width=3, color=COLOR_PALETTE[0], dash='dash'),
-            # showlegend=False,
             mode='lines',
             name='Perfect reliability'
         ))
