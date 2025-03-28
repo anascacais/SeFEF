@@ -129,7 +129,7 @@ class Scorer:
             (self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :])
             & (self.sz_onsets[:, np.newaxis] <= timestamps_end_forecast[np.newaxis, :])
             & (forecasts >= threshold),
-            axis=1)
+            axis=0)
 
         no_sz_forecasts = forecasts[~np.any(
             (self.sz_onsets[:, np.newaxis] >= timestamps_start_forecast[np.newaxis, :])
@@ -177,7 +177,7 @@ class Scorer:
             num_bins = np.ceil(len(forecasts)**(1/3)).astype('int64')
 
         if binning_method == 'uniform':
-            bin_edges = np.linspace(0, 1, num_bins + 1)
+            bin_edges = np.linspace(min(forecasts), max(forecasts), num_bins + 1)
         elif binning_method == 'quantile':
             percentile = np.linspace(0, 100, num_bins + 1)
             bin_edges = np.percentile(np.sort(forecasts), percentile)[1:]  # remove edge corresponding to 0th percentile
@@ -308,7 +308,7 @@ class Scorer:
             x=diagram_data.loc[:, 'forecasted_proba'],
             y=diagram_data.loc[:, 'observed_proba'],
             mode='lines',
-            line=dict(width=3, color=COLOR_PALETTE[1]),
+            line=dict(width=3, color=COLOR_PALETTE[1]),  # width 5
             name='Reliability curve'
         ))
 
@@ -323,7 +323,7 @@ class Scorer:
         fig.add_trace(go.Scatter(
             x=[0, 1],
             y=[0, 1],
-            line=dict(width=3, color=COLOR_PALETTE[0], dash='dash'),
+            line=dict(width=3, color=COLOR_PALETTE[0], dash='dash'),  # width 5
             # showlegend=False,
             mode='lines',
             name='Perfect reliability'
@@ -332,7 +332,7 @@ class Scorer:
         fig.add_trace(go.Scatter(
             x=[0, 1],
             y=[y_avg, y_avg],
-            line=dict(width=3, color='lightgrey', dash='dash'),
+            line=dict(width=3, color='lightgrey', dash='dash'),  # width 5
             mode='lines',
             name='No resolution'
         ))
@@ -340,14 +340,14 @@ class Scorer:
         # Config plot layout
         fig.update_yaxes(
             title='observed probability',
-            tickfont=dict(size=12),
+            tickfont=dict(size=12),  # comment
             showline=True, linewidth=2, linecolor=COLOR_PALETTE[2],
             showgrid=False,
             range=[diagram_data.min().min(), diagram_data.max().max()]
         )
         fig.update_xaxes(
             title='forecasted probability',
-            tickfont=dict(size=12),
+            tickfont=dict(size=12),  # comment
             showline=True, linewidth=2, linecolor=COLOR_PALETTE[2],
             showgrid=False,
             range=[diagram_data.min().min(), diagram_data.max().max()],
@@ -356,5 +356,8 @@ class Scorer:
             title=f'Reliability diagram (binning method: {binning_method})',
             showlegend=True,
             plot_bgcolor='white',
+            # font=dict(size=24),  # uncomment
+            # width=1063,
+            # height=int(1063 / (4/3)),
         )
         fig.show()
