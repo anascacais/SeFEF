@@ -1,7 +1,6 @@
 from datetime import datetime
 
 forecast_horizon = 24*60*60  # 24h in seconds
-high_likelihood_thr = 0.2
 
 directory_information = {
     'data_folder_path': 'examples/data',

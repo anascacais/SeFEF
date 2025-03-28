@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import vonmises
 import scipy
-from scipy.optimize import minimize
+import scipy.special as sspecial
+import numpy as np
 
 # local
 from seizureforecast.visualization import plot_event_phase_dist
@@ -49,13 +50,17 @@ class EventProbabilityEstimator:
         # Compute instantaneous phase with respect to all candidate cycles
         phases = self._compute_instantaneuos_phases(
             ts[labels == True], candidate_cycles)
-        # Get magnitude of mean vector (aka SI, aka PLV)
-        si = np.abs(np.mean(np.exp(1j * phases), axis=0))
+        # Get magnitude of mean vector (aka SI, aka PLV) with penalization factor
+        si = np.abs(np.mean(np.exp(1j * phases), axis=0)) - 1/len(phases)
 
         # Indentify significant cycles
+        si_indx = scipy.signal.find_peaks(np.array([0, *si, 0]))[0] - 1
+        candidate_cycles = candidate_cycles[si_indx]
+        si = si[si_indx]
         significant_cycles = candidate_cycles[np.where(si >= self.si_thr)]
+
         significant_cycles = [val for _, val
-                              in sorted(zip(si, significant_cycles), reverse=True)]
+                              in sorted(zip(si[si >= self.si_thr], significant_cycles), reverse=True)]
         significant_cycles = exclude_harmonics(significant_cycles)
 
         if len(significant_cycles) == 0:
@@ -68,46 +73,9 @@ class EventProbabilityEstimator:
         total_duration = ts[-1] - ts[0]
         return candidate_cycles[candidate_cycles < 0.5 * total_duration]
 
-    def _compute_combined_probability(self, cycle_based_prob):
-        '''Internal method that computed the combined probability resulting from multiple cycles, through odds aggregation. Input has shape (#cycles, #samples).'''
-        # Compute geometric mean of odds, following Berkson (1944) the sum of the log-odds ratios, i.e. the logits, of P:
-        geometric_mean_odds = np.prod((
-            cycle_based_prob / (1-cycle_based_prob)) ** (1/cycle_based_prob.shape[0]), axis=0)
-        # Transform back to probability
-        prob = np.divide(geometric_mean_odds, 1+geometric_mean_odds)
-        return prob
-
-    def _weighted_average_combined_probability(self, windowed_prob, time_diff, decay_factor=1.46E-7):
-        '''Combine windowed probabilities using a weighted average approach. The weights decrease as the time difference between the timestamps and the test timestamps increase. An exponential decay function is used. Decay parameter is set so that the weight becomes negligible (0.01) after approximately 1 year. Both inputs have shape (#windows, #samples).'''
-        weights = np.exp(-decay_factor * np.array(time_diff))
-        normalized_weights = weights / np.sum(weights, axis=0)
-        return np.sum(normalized_weights * windowed_prob, axis=0)
-
-    def _get_windowed_data(self, ts, window_duration=None, window_overlap=None):
-        '''Internal method that splits input timestamps into windows of duration "window_duration" (in seconds) equivalent to a moving window approach with overlap of duration "window_overlap" (in seconds). In case of missing periods of data larger than 1/2 "window_duration", data is split and analysed separately. '''
-
-        if window_overlap is None:
-            window_overlap = int(window_duration * 0.5)
-
-        splits = np.split(ts, np.where(np.diff(ts) > window_duration/2)[0]+1)
-
-        ts_windows_start, ts_windows_end = [], []
-
-        for ts_split in splits:
-            ts_windows_start += [ts_split[0]]
-            while True:
-                try:
-                    ts_windows_end += [
-                        ts_split[np.where(ts_split-ts_windows_start[-1] >= window_duration)[0][0]]]
-                    ts_windows_start += [
-                        ts_split[np.where(ts_windows_end[-1] - ts_split - window_overlap >= 0)[0][-1]]]
-                except IndexError:
-                    break
-
-            if len(ts_windows_start) > len(ts_windows_end):
-                ts_windows_start = ts_windows_start[:-1]
-
-        return ts_windows_start, ts_windows_end
+    def _compute_combined_probability(self, cycle_based_odds, sz_prior):
+        '''Internal method that computed the combined probability resulting from multiple cycles, through [TBD]. Input has shape (#cycles, #samples).'''
+        return ((np.prod(cycle_based_odds, axis=0)**(1/cycle_based_odds.shape[0])) * sz_prior)
 
 
 class VonMisesEstimator(EventProbabilityEstimator):
@@ -117,22 +85,16 @@ class VonMisesEstimator(EventProbabilityEstimator):
     ---------- 
     forecast_horizon : int
         Forecast horizon in seconds.  
-    significant_cycles : list of arrays, shape of arrays (#cycles,), dtype=int64
-        List of periods (in seconds) of significant cycles. Each element of the list corresponds to a window of analysis.
+    significant_cycles : array, shape (#cycles,), dtype=int64
+        Array of periods (in seconds) of significant cycles. 
     candidate_cycles : array-like, shape (#cycles,), dtype=int64
         Contains periods (in seconds) of candidate cycles.
     si_thr : float
         Minimum value of Synchronization Index (SI) to consider a cycle as significant (phase-locking with event occurrences).
-    von_mises_params : list of arrays, shape of arrays (#cycles, 2)
-        Contains the von Mises distribution paramaters (kappa, mu) for each signigicant cycle (according to the train window). Each element of the list corresponds to a window of analysis.
-    marginal_phase_dist : list of arrays, shape of arrays (#cycles, num_bins)
-        Contains the marginal phase distribution for the binned phases for each signigicant cycle (according to the train window). Each element of the list corresponds to a window of analysis.
-    seizure_priors : list of floats
-        Contains the seizure prior. Each element of the list corresponds to a window of analysis.
-    ts_windows_end : array-like (#windows,)
-        Last timestamp of each train window. This is used to assert how relevant each particular cycle may be to the test timestamp (according to how long ago it was). 
-    window_duration : int, defaults to the total duration of the train set
-        Duration (in seconds) of window to analyse.
+    von_mises_dist_sz : list of VonMisesDistribution instances
+        VonMisesDistribution instances for seizure events. Each element of the list corresponds to a significant cycle.
+    von_mises_dist_sz : list of VonMisesDistribution instances
+        VonMisesDistribution instances for non-seizure events. Each element of the list corresponds to a significant cycle.
 
     Methods
     -------
@@ -155,7 +117,7 @@ class VonMisesEstimator(EventProbabilityEstimator):
         self.von_mises_dist_sz = []
         self.von_mises_dist_nonsz = []
 
-    def train(self, train_ts, train_labels, candidate_cycles, si_thr, max_n_cycles=None, window_duration=None, **args):
+    def train(self, train_ts, train_labels, candidate_cycles, si_thr, max_n_cycles=None, **args):
         ''' Computes likelihoods for phase bins, according to significant cycles. Von Mises fitting using MLE with a self-defined negative log-likelihood (NLL).
 
         Parameters
@@ -172,153 +134,49 @@ class VonMisesEstimator(EventProbabilityEstimator):
         self.candidate_cycles = np.array(candidate_cycles)
         self.si_thr = si_thr
         train_ts = np.array(train_ts)
+        train_labels = train_labels.astype(bool)
 
-        # Get windows for training
-        if window_duration is None:
-            self.window_duration = train_ts[-1] - train_ts[0]
-        else:
-            self.window_duration = window_duration
+        von_mises_dist_sz, von_mises_dist_nonsz, significant_cycles = self._get_VonMisesDist(
+            train_ts, train_labels, max_n_cycles)
 
-        ts_windows_start, ts_windows_end = self._get_windowed_data(
-            train_ts, window_duration=self.window_duration)
-        von_mises_dist_nonsz, von_mises_dist_sz = [], []
-        significant_cycles = []
+        self.sz_prior = self._get_seizure_priors(train_labels)
+        self.nonsz_prior = self._get_seizure_priors(~train_labels)
 
-        for ts_start, ts_end in zip(ts_windows_start, ts_windows_end):
-
-            start_ind = np.where(train_ts == ts_start)[0][0]
-            end_ind = np.where(train_ts == ts_end)[0][0]
-
-            train_window_ts = train_ts[start_ind:end_ind]
-            train_window_labels = train_labels[start_ind:end_ind]
-
-            # Identify significant cycles
-            sig_cycles_window = self._get_SI_significant_cycles(
-                train_window_labels, train_window_ts, self.candidate_cycles)
-
-            sig_cycles_window = sig_cycles_window[:max_n_cycles]
-            significant_cycles += [np.array(sig_cycles_window)]
-
-            # Get instantaneous phase for events and all samples for each cycle
-            all_events = self._compute_instantaneuos_phases(
-                train_window_ts, sig_cycles_window)
-
-            von_mises_sz_window, von_mises_nonsz_window = [], []
-            for i in range(len(sig_cycles_window)):
-                initial_params = [0.0, 2.0]  # mu0, kappa
-                # P(phase|X=1)
-                result = minimize(
-                    fun=self.von_mises_nll,
-                    x0=initial_params,
-                    args=(all_events[:, i], train_window_labels),
-                    method='L-BFGS-B',
-                    bounds=[(-np.pi, np.pi), (0.01, 10)],
-                )
-                mu_sz, kappa_sz = result.x
-                # P(phase|X=0)
-                result = minimize(
-                    fun=self.von_mises_nll,
-                    x0=initial_params,
-                    args=(all_events[:, i], ~train_window_labels),
-                    method='L-BFGS-B',
-                    bounds=[(-np.pi, np.pi), (0.01, 10)],
-                )
-                mu_nonsz, kappa_nonsz = result.x
-
-                epsilon = (2 * np.pi * self.forecast_horizon) / \
-                    sig_cycles_window[i]
-                von_mises_sz_window += [VonMisesDistribution(
-                    mu_sz, kappa_sz, epsilon, prior=self._get_seizure_priors(train_window_labels))]
-                von_mises_nonsz_window += [VonMisesDistribution(
-                    mu_nonsz, kappa_nonsz, epsilon, prior=self._get_seizure_priors(~train_window_labels))]
-
-            von_mises_dist_sz += [von_mises_sz_window]
-            von_mises_dist_nonsz += [von_mises_nonsz_window]
-
-        self.ts_windows_end = np.array(ts_windows_end)
-        self.significant_cycles = significant_cycles
+        self.significant_cycles = np.array(significant_cycles)
         self.von_mises_dist_sz = von_mises_dist_sz
         self.von_mises_dist_nonsz = von_mises_dist_nonsz
 
-    def retrain(self, train_ts, train_labels, max_n_cycles=None):
-        ''' Computes likelihoods for phase bins, according to significant cycles. Von Mises fitting using MLE with a self-defined negative log-likelihood (NLL).
+    def _get_VonMisesDist(self, train_ts, train_labels, max_n_cycles):
+        '''Internal method that computes an estimate of VonMises PMF distribution for the ictal (X=1) and interictal samples (X=0).'''
+        # Identify significant cycles
+        sig_cycles = self._get_SI_significant_cycles(
+            train_labels, train_ts, self.candidate_cycles)
 
-        Parameters
-        ---------- 
-        train_ts : array-like, shape (#samples, ), dtype=int64
-            Contains the unix timestamp (in seconds) of the samples.
-        train_labels : array-like, shape (#samples, ), dtype=bool
-            Contains the labels of each sample.
-        '''
-        train_ts = np.array(train_ts)
-        try:
-            train_ts = train_ts[np.where(
-                train_ts >= self.ts_windows_end[-1])[0][0]:]
-        except IndexError:  # in case there's no new data
-            return None
+        sig_cycles = sig_cycles[:max_n_cycles]
 
-        # Get windows for training
-        ts_windows_start, ts_windows_end = self._get_windowed_data(
-            train_ts, window_duration=self.window_duration)
-        von_mises_dist_nonsz, von_mises_dist_sz = [], []
-        significant_cycles = []
+        # Get instantaneous phase for events and all samples for each cycle
+        all_events = self._compute_instantaneuos_phases(
+            train_ts, sig_cycles)
 
-        for ts_start, ts_end in zip(ts_windows_start, ts_windows_end):
+        von_mises_sz, von_mises_nonsz = [], []
+        for i in range(len(sig_cycles)):
+            if pd.Timedelta(seconds=sig_cycles[i]).days > 1:
+                unit = 24*60*60
+            else:
+                unit = 60*60
+            epsilon = (2 * np.pi * unit) / sig_cycles[i]
+            # P(phase|X=1)
+            dist_sz = VonMisesDistribution(epsilon)
+            dist_sz._estimate_parameters(all_events[:, i][train_labels])
 
-            start_ind = np.where(train_ts == ts_start)[0][0]
-            end_ind = np.where(train_ts == ts_end)[0][0]
+            # P(phase|X=0)
+            dist_nonsz = VonMisesDistribution(epsilon)
+            dist_nonsz._estimate_parameters(all_events[:, i][~train_labels])
 
-            train_window_ts = train_ts[start_ind:end_ind]
-            train_window_labels = train_labels[start_ind:end_ind]
+            von_mises_sz += [dist_sz]
+            von_mises_nonsz += [dist_nonsz]
 
-            # Identify significant cycles
-            sig_cycles_window = self._get_SI_significant_cycles(
-                train_window_labels, train_window_ts, self.candidate_cycles)
-
-            sig_cycles_window = sig_cycles_window[:max_n_cycles]
-            significant_cycles += [np.array(sig_cycles_window)]
-
-            # Get instantaneous phase for events and all samples for each cycle
-            all_events = self._compute_instantaneuos_phases(
-                train_window_ts, sig_cycles_window)
-
-            von_mises_sz_window, von_mises_nonsz_window = [], []
-            for i in range(len(sig_cycles_window)):
-                initial_params = [0.0, 2.0]  # mu0, kappa
-                result = minimize(
-                    fun=self.von_mises_nll,
-                    x0=initial_params,
-                    args=(all_events[:, i], train_window_labels),
-                    method='L-BFGS-B',
-                    bounds=[(-np.pi, np.pi), (0.01, 10)],
-                )
-                mu_sz, kappa_sz = result.x
-                # P(phase|X=0)
-                result = minimize(
-                    fun=self.von_mises_nll,
-                    x0=initial_params,
-                    args=(all_events[:, i], ~train_window_labels),
-                    method='L-BFGS-B',
-                    bounds=[(-np.pi, np.pi), (0.01, 10)],
-                )
-                mu_nonsz, kappa_nonsz = result.x
-
-                epsilon = (2 * np.pi * self.forecast_horizon) / \
-                    sig_cycles_window[i]
-                von_mises_sz_window += [VonMisesDistribution(
-                    mu_sz, kappa_sz, epsilon, prior=self._get_seizure_priors(train_window_labels))]
-                von_mises_nonsz_window += [VonMisesDistribution(
-                    mu_nonsz, kappa_nonsz, epsilon, prior=self._get_seizure_priors(~train_window_labels))]
-
-            von_mises_dist_sz += [von_mises_sz_window]
-            von_mises_dist_nonsz += [von_mises_nonsz_window]
-
-        if len(von_mises_dist_sz) != 0:
-            self.ts_windows_end = np.concatenate(
-                (self.ts_windows_end, np.array(ts_windows_end)), axis=0)
-            self.significant_cycles += significant_cycles
-            self.von_mises_dist_sz += von_mises_dist_sz
-            self.von_mises_dist_nonsz += von_mises_dist_nonsz
+        return von_mises_sz, von_mises_nonsz, sig_cycles
 
     def predict(self, test_ts):
         ''' Given samples' timestamps, computes the probability of events, according to the cycles found in train.
@@ -333,22 +191,22 @@ class VonMisesEstimator(EventProbabilityEstimator):
         prob : array-like, shape (#samples, ), dtype=float64
             Constaints the estimate of likelihood of an event for each sample. 
         '''
-        prob = []
-        for window_indx in range(len(self.significant_cycles)):
-            # Estimate likelihoods for all samples corresponding to each cycle
-            phases = self._compute_instantaneuos_phases(
-                test_ts, self.significant_cycles[window_indx])
-            estimated_prob = []
-            for i in range(len(self.significant_cycles[window_indx])):
-                estimated_prob += [self._compute_vonmises_with_smoothing(
-                    phases[:, i], self.von_mises_dist_sz[window_indx][i], self.von_mises_dist_nonsz[window_indx][i])]
-            estimated_prob = np.array(estimated_prob)
-            prob += [self._compute_combined_probability(estimated_prob)]
+        # Estimate likelihoods for all samples corresponding to each cycle
+        phases = self._compute_instantaneuos_phases(
+            test_ts, self.significant_cycles)
 
-        time_diff = test_ts[np.newaxis, :] - self.ts_windows_end[:, np.newaxis]
-        return self._weighted_average_combined_probability(np.array(prob), time_diff)
+        estimated_odds = []
+        for i in range(len(self.significant_cycles)):
+            estimated_odds += [self._compute_vonmises_odds(
+                phases[:, i], self.von_mises_dist_sz[i], self.von_mises_dist_nonsz[i])]
 
-    def plot_fit_dist(self, ts, labels, window_ind, unit='days'):
+        estimated_odds = np.array(estimated_odds)
+        prob = self._compute_combined_probability(
+            estimated_odds, self.sz_prior)
+
+        return np.array(prob)
+
+    def plot_fit_dist(self, ts, labels):
         ''' Polar plot of events' phase distribution for the provided cycle. Plots both a density histogram (bin frequency divided by the bin width, so that the area under the histogram integrates to 1 (np.sum(density * np.diff(bins)) == 1)) and the provided PDF function. 
 
         Parameters
@@ -357,35 +215,28 @@ class VonMisesEstimator(EventProbabilityEstimator):
             Contains the unix timestamp (in seconds) of the samples.
         labels : array-like, shape (#samples,), dtype=bool
             Contains the labels of each sample.
-        window_ind : int
-            Index of window from which the significant cycles should be plotted.
         '''
         if self.von_mises_dist_sz is None:
             raise ValueError(
                 'Train is required before plotting the distribution.')
 
-        von_mises_dist_sz = self.von_mises_dist_sz[window_ind]
-        von_mises_dist_nonsz = self.von_mises_dist_nonsz[window_ind]
-
         event_bin_counts, sample_bin_counts, func_list, cycle_list, bin_edges = [], [], [], [], []
-        for ind, cycle_period in enumerate(self.significant_cycles[window_ind]):
-
-            if unit == 'days':
+        for ind, cycle_period in enumerate(self.significant_cycles):
+            if pd.Timedelta(seconds=cycle_period).days > 1:
+                unit = 24*60*60
                 cycle_list += [
                     f'{pd.to_timedelta(cycle_period, unit="s").days}-day cycle']
-            elif unit == 'hours':
+            else:
+                unit = 60*60
                 cycle_list += [
                     f'{int(pd.to_timedelta(cycle_period, unit="s").total_seconds()/3600)}-hour cycle']
-            else:
-                raise ValueError(
-                    f'Unit {unit} is not implemented. Choose between "days" and "hours".')
 
-            def vonmises_func(x, sz_dist=von_mises_dist_sz[ind], nonsz_dist=von_mises_dist_nonsz[ind]
-                              ): return self._compute_vonmises_with_smoothing(x, sz_dist, nonsz_dist)
+            def vonmises_func(x, sz_dist=self.von_mises_dist_sz[ind], nonsz_dist=self.von_mises_dist_nonsz[ind]
+                              ): return self._compute_vonmises_prob(x, sz_dist, nonsz_dist)
             func_list += [vonmises_func]
 
-            epsilon = (2 * np.pi * self.forecast_horizon) / cycle_period
-            bin_edges += [np.arange(-epsilon/2, 2*np.pi, epsilon)]
+            epsilon = (2 * np.pi * unit) / cycle_period
+            bin_edges += [np.arange(0, 2*np.pi+epsilon/2, epsilon)]
 
             phases_events = self._compute_instantaneuos_phases(
                 ts[labels == True], [cycle_period])
@@ -398,20 +249,16 @@ class VonMisesEstimator(EventProbabilityEstimator):
         plot_event_phase_dist(bin_edges, event_bin_counts,
                               sample_bin_counts, func_list, cycle_list)
 
-    def _compute_vonmises_with_smoothing(self, theta, sz_dist, nonsz_dist):
+    def _compute_vonmises_odds(self, theta, sz_dist, nonsz_dist):
         '''Internal method that computes an estimate of the point value of the von mises distribution, through a slice of its CDF, with smoothing (to avoid zero probability estimates). The width of the slice corresponds to the duration of the forecast horizon (e.g. in a 24h cycle and forecast horizon of 1h, the width of the slice equals 2pi/24). "sz_dist" and "nonsz_dist" are instances of VonMisesDistribution.'''
         likelihood = sz_dist.get_probability(theta)
-        marginal = likelihood * sz_dist.prior + \
-            nonsz_dist.get_probability(theta) * nonsz_dist.prior
-        # P(X=1|phase) = (P(phase|X=1) * P(X=1)) / P(phase)
-        return (likelihood * sz_dist.prior) / marginal
+        marginal = likelihood * self.sz_prior + \
+            nonsz_dist.get_probability(theta) * self.nonsz_prior
+        # P(X=1|phase) = P(phase|X=1) / P(phase)
+        return likelihood / marginal
 
-    def von_mises_nll(self, params, theta, outcomes):
-        '''negative log likelihood'''
-        mu0, kappa = params
-        probs = scipy.special.expit(kappa * np.cos(theta - mu0))
-        nll = -np.sum(outcomes * np.log(probs))
-        return nll
+    def _compute_vonmises_prob(self, theta, sz_dist, nonsz_dist):
+        return (self._compute_vonmises_odds(theta, sz_dist, nonsz_dist) * self.sz_prior)
 
     def _get_seizure_priors(self, labels):
         '''Internal method that computes the seizure prior P(X=1) as the ratio of seizure samples to total samples.'''
@@ -421,20 +268,37 @@ class VonMisesEstimator(EventProbabilityEstimator):
 def exclude_harmonics(periods):
     """Remove harmonics from the list of periods."""
     # periods_sorted = sorted(periods, reverse=True)
-    non_harmonics = set()
+    non_harmonics_slow = set()
+    non_harmonics_fast = set()
 
-    for p1 in periods:
+    slow_periods = np.array(periods)[np.where(
+        np.array([pd.Timedelta(seconds=p).days for p in periods]) > 1)]
+    fast_periods = np.array(periods)[np.where(
+        ~(np.array([pd.Timedelta(seconds=p).days for p in periods]) > 1))]
+
+    for p1 in slow_periods:
         # Check if p1 is harmonic of any previously added period
         is_harmonic = False
-        for p2 in non_harmonics:
+        for p2 in non_harmonics_slow:
             if (p2 % p1 == 0 or p1 % p2 == 0):
                 is_harmonic = True
                 break
 
         if not is_harmonic:
-            non_harmonics.add(p1)
+            non_harmonics_slow.add(p1)
 
-    return list(non_harmonics)
+    for p1 in fast_periods:
+        # Check if p1 is harmonic of any previously added period
+        is_harmonic = False
+        for p2 in non_harmonics_fast:
+            if (p2 % p1 == 0 or p1 % p2 == 0):
+                is_harmonic = True
+                break
+
+        if not is_harmonic:
+            non_harmonics_fast.add(p1)
+
+    return list(non_harmonics_slow) + list(non_harmonics_fast)
 
 
 class VonMisesDistribution:
@@ -459,14 +323,79 @@ class VonMisesDistribution:
         Compute estimate of probability from the von Mises distribution.
     '''
 
-    def __init__(self, mu, kappa, epsilon, prior, smoothing=1E-6):
-        self.mu = mu
-        self.kappa = kappa
-        self.epsilon = epsilon
-        self.prior = prior
+    def __init__(self, epsilon, smoothing=1E-6):
+        self.mu = None
+        self.kappa = None
+        self.pmf = None
+
         self.smoothing = smoothing
 
-        self.n_slices = (2*np.pi) / epsilon
+        self.epsilon = epsilon
+        self.bin_edges = np.linspace(
+            0, 2*np.pi, np.ceil((2*np.pi) / epsilon).astype('int64') + 1)
+
+    def _compute_PMF(self):
+        '''Internal method that computes an approximation of the von Mises probability mass function (PMF), assuming a number of discrete elements equivalent to dividing the unit circle into slices with width "epsilon".'''
+        pmf = vonmises.cdf(self.bin_edges[1:], kappa=self.kappa, loc=self.mu) - \
+            vonmises.cdf(
+                self.bin_edges[:-1], kappa=self.kappa, loc=self.mu) + np.finfo(np.float64).eps
+        # normalization due to floating-point precision limitations
+        pmf /= np.sum(pmf)
+        return pmf
+
+    def _estimate_parameters(self, phases, num_iter=5):
+        """
+        vonMisesEstimation
+        ------------------
+        von Mises-Fischer parameter estimation methods for 2-D case
+        (proper von Mises distribution).
+
+        :copyright: Cognitive Systems Lab, 2025
+
+        Estimate von Mises parameters `mu` as the angle of the mean complex phasor, and `k` using a modified version of Sra's truncated
+        Newton approximation, where the number of iterations is increased to improve accuracy in the 2-Dimensional case.
+
+        Parameters
+        ----------
+        phases : arraylike
+            Array containing observed phases as radians between $-\pi$ and $\pi$.
+        num_iter : int, optional
+            Number of iterations to use in Newton's approximation method, by default 5
+
+        Returns
+        -------
+        mu : float
+            mu parameter
+        k : float
+            k parameter
+        """
+        complex_phases = np.exp((1.0j) * phases)
+        mean_phase = np.mean(complex_phases)
+        R = np.abs(mean_phase)
+
+        mu = np.angle(mean_phase)
+
+        Rho = R - 1/len(phases)
+
+        if (1 - Rho) < 1E-12:
+            self.mu, self.kappa = mu, 1E12
+
+        elif (Rho < 0):
+            self.mu, self.kappa = mu, 1E-12
+            self.pmf = self._compute_PMF()
+
+        else:
+            k = Rho * (1 - Rho**2) / (1 - Rho)
+
+            def A2(k):
+                return sspecial.i1(k) / sspecial.i0(k)
+
+            for _ in range(num_iter):
+                k -= (A2(k) - Rho) / (1 - A2(k)**2 - (A2(k) / k))
+
+            self.mu, self.kappa = mu, k
+
+        self.pmf = self._compute_PMF()
 
     def get_probability(self, theta):
         ''' Compute estimate of probability from the von Mises distribution. Computed as a slice of the pdf, where the width is equal to "epsilon".
@@ -481,7 +410,6 @@ class VonMisesDistribution:
         prob : np.array, shape (#samples,)
             Estimate of probability from the von Mises distribution.
         '''
-        prob = vonmises.cdf(theta+self.epsilon/2, kappa=self.kappa, loc=self.mu) - \
-            vonmises.cdf(theta-self.epsilon/2, kappa=self.kappa, loc=self.mu)
-        # prob = (prob + self.smoothing)/(1+len(prob)*self.smoothing)
+        bins = np.digitize(theta, self.bin_edges)-1
+        prob = self.pmf[bins]
         return prob

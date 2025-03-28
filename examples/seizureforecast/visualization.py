@@ -48,10 +48,16 @@ def plot_event_phase_dist(bin_edges, event_counts, sample_counts, pdf_func, cycl
         polar_layout['angularaxis']['ticktext'] = [
             f'{p} {period}' for period in range(1, len(bin_edges[i][:-1])+1)]
         fig.update_layout({f"polar{i+1}": polar_layout})
-        fig.layout.annotations[i].update(y=1.03)
+        # fig.layout.annotations[i].update(y=1.1, font_size=24)  # uncomment
+        fig.layout.annotations[i].update(y=1.03)  # 1.03
 
     fig.update_layout(
-        title_text="Event phase distribution for significant cycles")
+        title_text="Event phase distribution for significant cycles",
+        # font=dict(size=24),  # uncomment
+        # width=1063,
+        # height=int(1063 / (4/3)),
+        margin=dict(t=200)
+    )
 
     fig.show()
 
@@ -66,6 +72,7 @@ def _get_frequency_hist_events(bin_edges, counts, i=0):
         marker_color=COLOR_PALETTE[0],
         legendgroup='freq_events',
         showlegend=not bool(i),
+
     )
 
 
@@ -80,11 +87,13 @@ def _get_frequency_hist_samples(bin_edges, counts, i=0):
         opacity=0.2,
         legendgroup='freq_samples',
         showlegend=not bool(i),
+
     )
 
 
 def _get_polar_dist(pdf_func, i=0):
     x = np.linspace(0, 2*np.pi, num=501)
+    x[-1] = 0
     pdf = pdf_func(x)
     return go.Scatterpolar(
         theta=np.rad2deg(x),
