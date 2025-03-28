@@ -375,8 +375,6 @@ class TimeSeriesCV:
                 opacity=0.5
             ))
 
-            # fig.add_trace(self._get_dummy_scatter(color=COLOR_PALETTE[2], showlegend=(ifold == 0)))
-
         # Config plot layout
         fig.update_yaxes(
             title='TSCV folds',
@@ -384,18 +382,14 @@ class TimeSeriesCV:
             autorange='reversed',
             tickvals=list(range(1, self.n_folds+1)),
             ticktext=[f'Fold {i}  ' for i in range(1, self.n_folds+1)],
-            tickfont=dict(size=12),  # comment
+            tickfont=dict(size=12),
         )
         fig.update_xaxes(title='Time',
-                         tickfont=dict(size=12),  # comment
+                         tickfont=dict(size=12),
                          )
         fig.update_layout(
             title='Time Series Cross Validation',
-            # showlegend=False,
             plot_bgcolor='white',
-            # font=dict(size=24),  # uncomment
-            # width=1063,
-            # height=int(1063 / (4/3))
         )
         fig.show()
 

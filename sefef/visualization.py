@@ -30,32 +30,6 @@ def hex_to_rgba(h, alpha):
     return tuple([int(h.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)] + [alpha])
 
 
-def _color_fader(prob, thr=0.5, ll='#FFFFC7', lh='#FFC900', hl='#FF9300', hh='#FF0000'):
-    ''' Fade (interpolate) from color c1 to c2 with a non-linear transformation, according to the provided threshold.
-
-    Parameters
-    ---------- 
-    ll_color, lh_color, hl_color, hh_color : any format supported by matplotlib, e.g., 'blue', '#FF0000'
-    prob : float64
-        Value between 0 and 1 corresponding to the probability of a seizure happening.
-    thr : float64
-        Value between 0 and 1 corresponding to the threshold 
-
-    Returns
-    -------
-        A hex string representing the blended color.
-    '''
-    ll_color = np.array(mpl.colors.to_rgb(ll))
-    lh_color = np.array(mpl.colors.to_rgb(lh))
-    hl_color = np.array(mpl.colors.to_rgb(hl))
-    hh_color = np.array(mpl.colors.to_rgb(hh))
-
-    if prob <= thr:
-        return mpl.colors.to_hex((1 - prob/thr) * ll_color + (prob/thr) * lh_color)
-    else:
-        return mpl.colors.to_hex((1 - ((prob-thr)/(1-thr))) * hl_color + ((prob-thr)/(1-thr)) * hh_color)
-
-
 def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horizon, title='Seizure probability', folder_path=None, filename=None, show=True, return_plot=False, n_points=100):
     ''' Provide visualization of forecasts.
 
@@ -103,7 +77,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         x=pd.to_datetime(df['ts'], unit='s'), y=df['forecasts'],
         mode='lines',
         line_color='white',
-        line_width=3,  # 5
+        line_width=3,
         name='Forecast'
     ))
 
@@ -112,7 +86,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         mode='markers',
         marker=dict(
             color=COLOR_PALETTE[1],
-            size=12,  # 18
+            size=12,
             symbol='star',
         ),
         name='Seizure'
@@ -125,7 +99,7 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
     fig.update_yaxes(
         title='Probability',
         showgrid=False,
-        tickfont=dict(size=12),  # comment
+        tickfont=dict(size=12),
         range=[np.max([0, np.min(non_nan_forecasts) - np.std(non_nan_forecasts)]),
                np.min([1, np.max(non_nan_forecasts) + np.std(non_nan_forecasts)])],
     )
@@ -134,9 +108,6 @@ def plot_forecasts(forecasts, ts, sz_onsets, high_likelihood_thr, forecast_horiz
         showgrid=False,
     )
     fig.update_layout(
-        # font=dict(size=24),  # uncomment
-        # width=1063,
-        # height=1000,
         title=title,
         showlegend=True,
         plot_bgcolor='white',
@@ -198,10 +169,6 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
             fig.add_annotation(annotation)
         fig.update_xaxes(
             range=[x0, x1], row=1, col=(ifig+1))
-        # Apply intercalated tick angle (0° for even-indexed subplots, 45° for odd)
-        # for i in range(1, len(figs) + 1):
-        #     angle = 0 if i % 2 == 0 else -90  # Alternating angles
-        # fig.update_xaxes(tickangle=angle, row=(i-1)//2 + 1, col=(i-1) % 2 + 1)
         fig.update_yaxes(
             showticklabels=(ifig == 0),
             row=1, col=(ifig+1))
@@ -210,9 +177,6 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
     # Update layout
     forecasts = np.concat(forecasts)
     fig.update_layout(
-        # font=dict(size=24),  # uncomment
-        # width=1063,
-        # height=int(1063 / (4/3)),
         title_text=figure['layout']['title']['text'],
         showlegend=True, plot_bgcolor='white', legend_bgcolor='whitesmoke',
         yaxis_title='Probability',
@@ -223,7 +187,7 @@ def aggregate_plots(figs, folder_path=None, filename=None, show=True,):
                 xref="paper",
                 yref="paper",
                 showarrow=False,
-                font=dict(size=24)  # dict(size=14)
+                font=dict(size=14)
             )],)
     fig.update_xaxes(showgrid=False,)
     non_nan_forecasts = forecasts[~np.isnan(forecasts)]
